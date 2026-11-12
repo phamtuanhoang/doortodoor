@@ -63,7 +63,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .btn-main:hover{filter:brightness(1.08)}
 .btn-main[disabled]{opacity:.6;cursor:wait}
 .btn-line{border-color:var(--ink);color:var(--ink)}
-.btn-line:hover{background:var(--ink);color:var(--paper)}
+.btn-line{background:none}
+.btn-line:hover,.btn-line[aria-expanded=true]{background:var(--ink);color:var(--paper)}
 .cta{display:flex;flex-wrap:wrap;gap:12px}
 
 /* Hero */
@@ -97,7 +98,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .page-head .wrap{display:grid;gap:16px;padding-block:clamp(40px,6vw,72px)}
 .page-head h1{color:var(--logo);max-width:22ch}
 
-/* Bản đồ hành trình */
+/* Bản đồ hành trình (ẩn, mở bằng nút ở hero) */
+.sec-news{padding-top:clamp(8px,2vw,24px)}
+.band-map .row-head{align-items:flex-start}
+.on-dark-lead{color:var(--on-band-muted)}
+
 .band-map{background:var(--band);color:var(--on-band);padding-block:clamp(52px,7vw,88px)}
 .on-dark .eyebrow{color:var(--gold)}
 .route-map{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:20px;align-items:start}

@@ -47,6 +47,7 @@
         <div class="cta">
           <a class="btn btn-main" href="#lien-he">Gửi yêu cầu báo giá</a>
           <a class="btn btn-line" href="#bang-gia">So sánh cước hàng lẻ</a>
+          <button class="btn btn-line" type="button" id="journey-btn" aria-expanded="false" aria-controls="hanh-trinh">Tìm hiểu hành trình lô hàng</button>
         </div>
       </div>
       <aside class="waybill" aria-label="Tóm tắt hành trình một lô hàng">
@@ -63,11 +64,12 @@
     </div>
   </section>
 
-  <section class="band-map">
+  <section class="band-map" id="hanh-trinh" hidden>
     <div class="wrap">
-      <div class="sec-head on-dark">
-        <p class="eyebrow">Hành trình một lô hàng</p>
-        <h2>Sáu bước từ xưởng đến tay khách</h2>
+      <div class="sec-head row-head on-dark">
+        <div><p class="eyebrow">Hành trình một lô hàng</p><h2>Sáu bước từ xưởng đến tay khách</h2>
+          <p class="lead on-dark-lead">Hàng được gom về kho Bằng Tường, báo quan đầu Trung Quốc, thông quan tại Tân Thanh, Hữu Nghị hoặc Chi Ma, rồi về kho Hà Nội và giao tận tay khách. Bấm từng bước để xem trên bản đồ.</p></div>
+        <button class="chip" type="button" id="journey-close" aria-controls="hanh-trinh">Thu gọn ✕</button>
       </div>
       <div class="route-map" id="route-map">
         <div class="map-stage">
@@ -103,6 +105,16 @@
     </div>
   </section>
 
+  <section class="sec sec-news">
+    <div class="wrap">
+      <div class="sec-head row-head">
+        <div><p class="eyebrow">Tin tức</p><h2>Tin mới từ các cửa khẩu</h2></div>
+        <a class="more" href="#tin-tuc">Tất cả tin →</a>
+      </div>
+      <div class="news-grid" data-render="news-short"></div>
+    </div>
+  </section>
+
   <section class="sec">
     <div class="wrap">
       <div class="sec-head row-head">
@@ -120,16 +132,6 @@
         <a class="more" href="#cua-khau">Xem đầy đủ số liệu →</a>
       </div>
       <div class="stats" data-render="border-stats"></div>
-    </div>
-  </section>
-
-  <section class="sec">
-    <div class="wrap">
-      <div class="sec-head row-head">
-        <div><p class="eyebrow">Tin tức</p><h2>Tin mới từ các cửa khẩu</h2></div>
-        <a class="more" href="#tin-tuc">Tất cả tin →</a>
-      </div>
-      <div class="news-grid" data-render="news-short"></div>
     </div>
   </section>
 

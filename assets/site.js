@@ -156,6 +156,17 @@
   menuBtn.addEventListener('click', function () { var o = menu.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', String(o)); });
   route();
 
+  /* ---------- Nút "Tìm hiểu hành trình lô hàng" ---------- */
+  var jBtn = document.getElementById('journey-btn'), jSec = document.getElementById('hanh-trinh'), jClose = document.getElementById('journey-close');
+  function journey(open) {
+    jSec.hidden = !open; jBtn.setAttribute('aria-expanded', String(open));
+    if (open) jSec.scrollIntoView({ block: 'start' }); else jBtn.focus();
+  }
+  if (jBtn && jSec) {
+    jBtn.addEventListener('click', function () { journey(jSec.hidden); });
+    if (jClose) jClose.addEventListener('click', function () { journey(false); });
+  }
+
   /* ---------- Form liên hệ ---------- */
   var form = document.getElementById('lead-form'), msg = document.getElementById('l-msg'), btn = document.getElementById('l-submit');
   form.addEventListener('submit', function (e) {
