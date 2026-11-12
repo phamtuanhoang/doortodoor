@@ -102,6 +102,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .sec-news{padding-top:clamp(8px,2vw,24px)}
 .band-map .row-head{align-items:flex-start}
 .on-dark-lead{color:var(--on-band-muted)}
+.band-map .wrap{position:relative}
+.x-btn{flex:none;display:inline-grid;place-items:center;width:48px;height:48px;border-radius:50%;background:var(--on-band);color:var(--band);border:0;cursor:pointer}
+.x-btn svg{width:22px;height:22px;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;fill:none}
+.x-btn:hover{background:var(--gold);color:#2A1A0E}
+.band-map .row-head{flex-wrap:nowrap}
 
 .band-map{background:var(--band);color:var(--on-band);padding-block:clamp(52px,7vw,88px)}
 .on-dark .eyebrow{color:var(--gold)}
