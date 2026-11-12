@@ -1,0 +1,118 @@
+{
+  "contact": {
+    "company": "doortodoor",
+    "hotline": "",
+    "zalo": "",
+    "email": "",
+    "address": "",
+    "hours": "Thứ Hai – Thứ Bảy, 8:00 – 17:30"
+  },
+  "services": {
+    "items": [
+      { "title": "Nhập khẩu từ Trung Quốc", "desc": "Nhận hàng phía Trung Quốc, đưa qua cửa khẩu và giao về kho tại Việt Nam." },
+      { "title": "Xuất khẩu sang Trung Quốc", "desc": "Lấy hàng tại Việt Nam, đưa lên cửa khẩu và bàn giao cho bên nhận tại Trung Quốc." },
+      { "title": "Khai báo hải quan", "desc": "Lập và truyền tờ khai, theo dõi phân luồng, xử lý yêu cầu của hải quan đến khi thông quan." },
+      { "title": "Tư vấn mã HS, thuế và giấy phép", "desc": "Xác định mã HS, thuế suất, chính sách mặt hàng và các kiểm tra chuyên ngành trước khi hàng lên xe." },
+      { "title": "Sang tải, đổi đầu xe tại cửa khẩu", "desc": "Điều phối giao nhận giữa xe hai bên tại khu vực cửa khẩu, hạn chế xe nằm chờ." },
+      { "title": "Theo dõi lô hàng", "desc": "Cập nhật vị trí xe, tình trạng tờ khai và lịch thông quan cho từng lô." }
+    ]
+  },
+  "border": {
+    "updated": "4/11/2026",
+    "headline": "Thương mại Việt – Trung đang ở mức cao nhất từ trước tới nay",
+    "lead": "Chín tháng năm 2026, thương mại Việt – Trung đã gần bằng cả năm 2025. Hàng nhập từ Trung Quốc chiếm phần lớn, nên chiều về Việt Nam luôn đông xe hơn.",
+    "stats": [
+      { "value": "253,1 tỷ", "label": "USD thương mại Việt – Trung sau 9 tháng; cả năm 2025 đạt 256 tỷ USD", "source": 1 },
+      { "value": "187,3 tỷ", "label": "USD Việt Nam nhập từ Trung Quốc, tăng 39,3%", "source": 1 },
+      { "value": "65,8 tỷ", "label": "USD Việt Nam xuất sang Trung Quốc, tăng 32,9%", "source": 1 },
+      { "value": ">98 tỷ", "label": "USD qua Lạng Sơn đến đầu tháng 10, mọi loại hình, tăng 38%", "source": 2 }
+    ],
+    "trucks": { "title": "Lạng Sơn: gần 3 xe nhập cho mỗi xe xuất", "exportTrucks": 142268, "importTrucks": 379663, "period": "1/1 đến 20/10/2026", "source": 3 },
+    "imports": {
+      "title": "Nhóm hàng nhập lớn nhất từ Trung Quốc",
+      "note": "Tỷ USD, 9 tháng 2026, so với cùng kỳ.",
+      "source": 1,
+      "items": [
+        { "name": "Máy tính, điện tử, linh kiện", "value": 69.6, "change": "+81,3%" },
+        { "name": "Máy móc, thiết bị, phụ tùng", "value": 34.9, "change": "+23,8%" },
+        { "name": "Vải", "value": 8.1, "change": "+6,3%" },
+        { "name": "Điện thoại và linh kiện", "value": 6.5, "change": "−7,1%" },
+        { "name": "Sản phẩm từ chất dẻo", "value": 5.9, "change": "+20%" },
+        { "name": "Sản phẩm từ sắt thép", "value": 5.6, "change": "+30,8%" }
+      ]
+    },
+    "exports": {
+      "title": "Nhóm hàng xuất lớn nhất sang Trung Quốc",
+      "note": "Tỷ USD, 9 tháng 2026, so với cùng kỳ.",
+      "source": 1,
+      "items": [
+        { "name": "Máy tính, điện tử, linh kiện", "value": 23.2, "change": "+85,2%" },
+        { "name": "Điện thoại và linh kiện", "value": 11.3, "change": "+10,6%" },
+        { "name": "Máy móc, thiết bị, phụ tùng", "value": 5.1, "change": "+27,8%" },
+        { "name": "Rau quả", "value": 4.7, "change": "+22,4%" },
+        { "name": "Máy ảnh, máy quay và linh kiện", "value": 3.1, "change": "+5%" },
+        { "name": "Thủy sản", "value": 2.8, "change": "+34,1%" }
+      ]
+    },
+    "gates": [
+      { "name": "Hữu Nghị", "zh": "友谊关", "latest": "900–1.000 xe mỗi ngày, nhiều nhất cả nước", "note": "Đang mở rộng lên 14 làn. Thí điểm xe tự hành và thông quan số trên tuyến đường chuyên dụng.", "source": 4 },
+      { "name": "Toàn tỉnh Lạng Sơn", "zh": "", "latest": "1.839 xe ngày 20/10, trong đó 1.379 xe nhập", "note": "Hơn 6.700 doanh nghiệp làm thủ tục tại đây trong 9 tháng, tăng 32%.", "source": 3 },
+      { "name": "Chi Ma", "zh": "爱店", "latest": "Lượng xe duy trì ở mức cao", "note": "Quy hoạch chung đến năm 2045 đã được duyệt tháng 9/2026, hướng tới cửa khẩu thông minh và logistics.", "source": 2 },
+      { "name": "Móng Cái", "zh": "东兴", "latest": "290 triệu USD, 152.000 tấn nông, thủy sản xuất qua lối mở Km3+4 đến 22/4", "note": "Bắc Luân II thí điểm thông quan cuối tuần từ tháng 3/2026.", "source": 5 },
+      { "name": "Lào Cai", "zh": "河口", "latest": "1,14 tỷ USD trong 5 tháng, tăng 62%", "note": "Cửa ngõ sang tỉnh Vân Nam qua cặp cửa khẩu Lào Cai – Hà Khẩu.", "source": 7 }
+    ],
+    "smartGate": {
+      "lanesOpen": 6,
+      "lanesTarget": 14,
+      "points": [
+        "Đoạn mở rộng từ 6 lên 14 làn đã cơ bản xong các hạng mục chính.",
+        "Xe tự hành AGV đã thử nghiệm an toàn 71 chuyến hàng tại khu vực mốc 1088/2–1089; 3 xe IGV chạy thử thành công tại mốc 1119–1120 ngày 12/2/2026.",
+        "Tại cuộc họp ngày 19/10, Chính phủ nhận định giai đoạn 1 đang chậm tiến độ và yêu cầu phấn đấu hoàn thành trong quý I/2027. Bến bãi và thiết bị bốc xếp tự động do doanh nghiệp đầu tư vẫn còn ở giai đoạn đầu."
+      ],
+      "source": 8
+    },
+    "tips": [
+      "Mùa trái cây và cuối năm là lúc áp lực bãi tăng. Tối 20/10 còn 237 xe tồn tại các cửa khẩu Lạng Sơn, trong đó 93 xe sầu riêng.",
+      "Nên chốt lịch giao nhận theo tình hình thông quan từng ngày, thay vì cho xe lên cửa khẩu rồi chờ.",
+      "Hàng trước Tết cần tính sớm. Năm 2026, các cửa khẩu Lạng Sơn nghỉ làm thủ tục từ 15 đến 23/2."
+    ],
+    "sources": [
+      { "id": 1, "label": "Mekong ASEAN, 12/10/2026, theo số liệu Cục Hải quan", "url": "https://mekongasean.vn/xuat-khau-sang-trung-quoc-tang-truong-trong-3-quy-dau-nam-60530.html" },
+      { "id": 2, "label": "VietnamPlus, 12/10/2026, theo UBND tỉnh Lạng Sơn", "url": "https://www.vietnamplus.vn/nghi-quyet-27-nqtw-tao-da-tang-truong-hai-con-so-tu-kinh-te-cua-khau-tai-lang-son-post1141417.vnp" },
+      { "id": 3, "label": "Thương hiệu và Công luận, theo Sở Công Thương Lạng Sơn", "url": "https://thuonghieucongluan.com.vn/lang-son-hon-1-800-xe-hang-xuat-nhap-khau-qua-cua-khau-trong-ngay-a338926.html" },
+      { "id": 4, "label": "Tiền Phong, 18/9/2026", "url": "https://tienphong.vn/du-an-len-doi-cua-khau-huu-nghi-dang-thi-cong-ra-sao-post1876798.tpo" },
+      { "id": 5, "label": "Thuế và Hải quan Online, 24/4/2026", "url": "https://thuehaiquan.tapchikinhtetaichinh.vn/152000-tan-nong-thuy-hai-san-xuat-khau-qua-cau-phao-km-34-mong-cai-154592.html" },
+      { "id": 6, "label": "Báo Đầu tư", "url": "https://baodautu.vn/mong-cai-dong-tien-bien-mau-tro-lai-bat-dong-san-buoc-vao-chu-ky-khai-thac-d608867.html" },
+      { "id": 7, "label": "Thương hiệu và Công luận, theo Ban Quản lý Khu kinh tế Lào Cai", "url": "https://thuonghieucongluan.com.vn/lao-cai-thu-ngan-sach-tu-hoat-dong-cua-khau-tang-79-xuat-nhap-khau-khoi-sac-a322065.html" },
+      { "id": 8, "label": "CafeF, 21/10/2026", "url": "https://cafef.vn/tinh-giap-trung-quoc-nhan-nhiem-vu-quan-trong-cua-chinh-phu-188261021105634833.chn" },
+      { "id": 9, "label": "Tin nhanh Chứng khoán, 12/2/2026", "url": "https://www.tinnhanhchungkhoan.vn/coc-nam-tag17940.html" }
+    ]
+  },
+  "prices": {
+    "collected": "4/11/2026",
+    "providers": [
+      { "name": "CTS Group", "url": "https://ctsgroup.vn/bang-gia-nhap-khau/", "date": "Sửa 19/3/2026", "note": "Từ Bằng Tường. Ủy thác 2%, 1,5% hoặc 1% theo giá trị khai báo.",
+        "kg": [ {"from":150,"to":300,"hn":8000,"hcm":10000}, {"from":300,"to":1000,"hn":7000,"hcm":9000}, {"from":1000,"to":2000,"hn":6000,"hcm":8000}, {"from":2000,"to":5000,"hn":5000,"hcm":7000} ],
+        "m3": [ {"from":2,"to":5,"hn":1300000,"hcm":1800000}, {"from":5,"to":10,"hn":1200000,"hcm":1700000}, {"from":10,"to":30,"hn":1100000,"hcm":1600000}, {"from":30,"to":null,"hn":1000000,"hcm":1500000} ] },
+      { "name": "Hoa Nam Logistics", "url": "https://hoanamlogistics.com/dich-vu-van-chuyen-trung-viet-chinh-ngach/", "date": "Sửa 30/9/2026", "note": "Về kho Hà Nội, TP.HCM. Phí dịch vụ không ghi mức cụ thể.",
+        "kg": [ {"from":200,"to":1000,"hn":8000,"hcm":10000}, {"from":1000,"to":3000,"hn":7000,"hcm":9000}, {"from":3000,"to":null,"hn":4000,"hcm":6000,"startsAt":true} ],
+        "m3": [ {"from":2,"to":5,"hn":1400000,"hcm":1900000}, {"from":5,"to":10,"hn":1300000,"hcm":1800000}, {"from":30,"to":null,"hn":800000,"hcm":1200000} ] },
+      { "name": "Mua Hàng Trung Việt", "url": "https://muahangtrungviet.vn/fee/bng-gi-vn-chuyn-chnh-ngch/", "date": "Đăng 15/5/2026", "note": "Phí dịch vụ công bố riêng trên trang của đơn vị.",
+        "kg": [ {"from":5,"to":50,"hn":15000,"hcm":20000}, {"from":50,"to":300,"hn":9000,"hcm":11000}, {"from":300,"to":1000,"hn":8000,"hcm":10000}, {"from":1000,"to":2000,"hn":7000,"hcm":9000}, {"from":2000,"to":5000,"hn":6000,"hcm":8000} ],
+        "m3": [ {"from":1,"to":5,"hn":1300000,"hcm":1800000}, {"from":5,"to":10,"hn":1200000,"hcm":1700000}, {"from":10,"to":30,"hn":1100000,"hcm":1600000}, {"from":30,"to":null,"hn":1000000,"hcm":1500000} ] },
+      { "name": "Thanh Long Logistics", "url": "https://thanhlonglogistics.com/bang-gia-nhap-khau-trung-viet/", "date": "Áp dụng 24/4/2026", "note": "Từ kho Quảng Châu. Tính theo cân thực hoặc cân quy đổi (D×R×C/6000), lấy số lớn hơn.",
+        "kg": [ {"from":0,"to":50,"hn":24000,"hcm":29000}, {"from":50,"to":100,"hn":22000,"hcm":27000}, {"from":100,"to":300,"hn":13000,"hcm":18000}, {"from":300,"to":1500,"hn":11000,"hcm":16000}, {"from":1500,"to":2000,"hn":9000,"hcm":14000} ],
+        "m3": [] },
+      { "name": "Yến China", "url": "https://yenchina.vn/nhap-hang-trung-quoc-chinh-ngach-tron-goi-bang-gia-2026/", "date": "Sửa 13/10/2026", "note": "Mua hộ 2%, 1,5% hoặc 1,2% theo giá trị đơn, tối thiểu 5.000 đ.",
+        "kg": [ {"from":50,"to":300.01,"hn":8000,"hcm":13000}, {"from":300.01,"to":1000.01,"hn":7000,"hcm":10000}, {"from":1000.01,"to":2000.01,"hn":6000,"hcm":9000}, {"from":2000.01,"to":5000.01,"hn":5000,"hcm":7000} ],
+        "m3": [ {"from":1,"to":5,"hn":1300000,"hcm":1900000}, {"from":5,"to":10,"hn":1200000,"hcm":1800000}, {"from":10,"to":30,"hn":1100000,"hcm":1700000} ] }
+    ]
+  },
+  "news": {
+    "items": [
+      { "date": "2026-10-21", "title": "Cửa khẩu thông minh Hữu Nghị: phấn đấu xong giai đoạn 1 trong quý I/2027", "summary": "Chính phủ nhận định giai đoạn 1 đang chậm tiến độ. Đoạn mở rộng từ 6 lên 14 làn đã cơ bản xong các hạng mục chính; bến bãi và thiết bị bốc xếp tự động còn ở giai đoạn đầu.", "source": "CafeF", "url": "https://cafef.vn/tinh-giap-trung-quoc-nhan-nhiem-vu-quan-trong-cua-chinh-phu-188261021105634833.chn" },
+      { "date": "2026-10-20", "title": "Lạng Sơn thông quan 1.839 xe trong một ngày", "summary": "Ngày 20/10, các cửa khẩu Lạng Sơn thông quan 1.839 xe, trong đó 1.379 xe nhập. Tối cùng ngày còn 237 xe tồn, trong đó 93 xe sầu riêng.", "source": "Thương hiệu và Công luận", "url": "https://thuonghieucongluan.com.vn/lang-son-hon-1-800-xe-hang-xuat-nhap-khau-qua-cua-khau-trong-ngay-a338926.html" },
+      { "date": "2026-10-12", "title": "Kim ngạch qua Lạng Sơn vượt 98 tỷ USD", "summary": "Đến đầu tháng 10, kim ngạch qua địa bàn Lạng Sơn vượt 98 tỷ USD, tăng 38%. Hơn 6.700 doanh nghiệp làm thủ tục tại đây trong 9 tháng.", "source": "VietnamPlus", "url": "https://www.vietnamplus.vn/nghi-quyet-27-nqtw-tao-da-tang-truong-hai-con-so-tu-kinh-te-cua-khau-tai-lang-son-post1141417.vnp" }
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Quản trị doortodoor</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700&family=Be+Vietnam+Pro:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div id="login-view" class="login" hidden>
+  <form id="login-form" class="login-card" novalidate>
+    <div class="brand"><span class="d2d">D<span>2</span>D</span><span class="brand-sub">Quản trị doortodoor</span></div>
+    <label for="lg-user">Tên đăng nhập</label>
+    <input id="lg-user" autocomplete="username" required>
+    <label for="lg-pass">Mật khẩu</label>
+    <input id="lg-pass" type="password" autocomplete="current-password" required>
+    <p class="err" id="lg-err" role="alert"></p>
+    <button class="btn primary" type="submit">Đăng nhập</button>
+  </form>
+</div>
+
+<div id="app-view" hidden>
+  <header class="top">
+    <div class="brand"><span class="d2d">D<span>2</span>D</span><span class="brand-sub">Quản trị</span></div>
+    <nav class="tabs" aria-label="Mục quản trị">
+      <a href="#khach-hang" data-tab="khach-hang">Khách hàng <b class="badge" id="badge-leads" hidden></b></a>
+      <a href="#ban-nhap" data-tab="ban-nhap">Bản nháp agent <b class="badge" id="badge-drafts" hidden></b></a>
+      <a href="#noi-dung" data-tab="noi-dung">Nội dung website</a>
+      <a href="#tai-khoan" data-tab="tai-khoan">Tài khoản</a>
+    </nav>
+    <div class="who"><span id="who"></span><button class="btn ghost small" id="logout" type="button">Đăng xuất</button></div>
+  </header>
+
+  <main class="main">
+    <section data-panel="khach-hang" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>Khách hàng gửi yêu cầu</h1>
+          <p class="muted">Thông tin khách để lại ở trang Liên hệ trên website.</p>
+        </div>
+        <div class="actions">
+          <label class="inline" for="lead-filter">Lọc</label>
+          <select id="lead-filter">
+            <option value="">Tất cả</option>
+            <option value="new">Mới</option>
+            <option value="contacted">Đã liên hệ</option>
+            <option value="quoted">Đã báo giá</option>
+            <option value="won">Chốt đơn</option>
+            <option value="lost">Không thành</option>
+          </select>
+          <a class="btn ghost" href="/api/admin/leads.csv">Tải file CSV</a>
+        </div>
+      </div>
+      <div id="lead-counts" class="counts"></div>
+      <div id="leads" class="leads"></div>
+    </section>
+
+    <section data-panel="ban-nhap" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>Bản nháp agent</h1>
+          <p class="muted">Agent tra cứu và gửi nội dung mới vào đây. Chỉ khi anh bấm duyệt, nội dung mới hiện lên website.</p>
+        </div>
+        <div class="actions">
+          <label class="inline" for="draft-filter">Xem</label>
+          <select id="draft-filter">
+            <option value="pending">Chờ duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Đã từ chối</option>
+          </select>
+        </div>
+      </div>
+      <div id="drafts"></div>
+    </section>
+
+    <section data-panel="noi-dung" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>Nội dung website</h1>
+          <p class="muted">Sửa xong bấm Lưu, website cập nhật sau khoảng 1 phút.</p>
+        </div>
+      </div>
+      <div class="subtabs" role="tablist" id="section-tabs"></div>
+      <div id="section-editor"></div>
+    </section>
+
+    <section data-panel="tai-khoan" hidden>
+      <div class="panel-head"><div><h1>Tài khoản quản trị</h1></div></div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Đổi mật khẩu</h2>
+          <form id="pw-form" class="stack" novalidate>
+            <label for="pw-cur">Mật khẩu hiện tại</label><input id="pw-cur" type="password" autocomplete="current-password">
+            <label for="pw-new">Mật khẩu mới (ít nhất 10 ký tự)</label><input id="pw-new" type="password" autocomplete="new-password">
+            <button class="btn primary" type="submit">Đổi mật khẩu</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Thêm tài khoản nhân viên</h2>
+          <form id="user-form" class="stack" novalidate>
+            <label for="u-name">Tên đăng nhập</label><input id="u-name" autocomplete="off">
+            <label for="u-pass">Mật khẩu (ít nhất 10 ký tự)</label><input id="u-pass" type="password" autocomplete="new-password">
+            <button class="btn primary" type="submit">Thêm tài khoản</button>
+          </form>
+          <h3>Danh sách tài khoản</h3>
+          <ul id="users" class="users"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="admin.js"></script>
+</body>
+</html>
