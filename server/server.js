@@ -5,6 +5,7 @@
   - Khách hàng gửi form liên hệ -> bảng leads
   - Agent gửi bản nháp -> bảng drafts, admin duyệt mới hiện lên web
   - Trang quản trị tại /admin
+  - Khách hàng, vận đơn, hành trình: customers.js
 
   Biến môi trường:
     DATABASE_URL       chuỗi kết nối Postgres (Railway tự cấp)
@@ -20,6 +21,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const DEFAULT_CONTENT = require('./default-content.json');
+const mountCustomers = require('./customers');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
@@ -423,6 +425,9 @@ admin.post('/password', requireAdmin, adminJson, async (req, res, next) => {
 });
 app.use('/api/admin', admin);
 
+/* ---------- Khách hàng, vận đơn, tra cứu (customers.js) ---------- */
+const customers = mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET });
+
 /* ---------- Trang quản trị ---------- */
 app.use('/admin', express.static(path.join(__dirname, 'admin'), {
   setHeaders: res => {
@@ -440,5 +445,6 @@ app.use((err, req, res, next) => {
 });
 
 initDb()
+  .then(() => customers.initTables())
   .then(() => app.listen(PORT, () => console.log('doortodoor server chạy ở cổng', PORT)))
   .catch(e => { console.error('Không khởi tạo được cơ sở dữ liệu', e); process.exit(1); });

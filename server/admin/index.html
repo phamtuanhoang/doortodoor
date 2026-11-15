@@ -26,7 +26,9 @@
   <header class="top">
     <div class="brand"><span class="d2d">D<span>2</span>D</span><span class="brand-sub">Quản trị</span></div>
     <nav class="tabs" aria-label="Mục quản trị">
-      <a href="#khach-hang" data-tab="khach-hang">Khách hàng <b class="badge" id="badge-leads" hidden></b></a>
+      <a href="#van-don" data-tab="van-don">Vận đơn <b class="badge" id="badge-orders" hidden></b></a>
+      <a href="#khach-tk" data-tab="khach-tk">Tài khoản khách</a>
+      <a href="#khach-hang" data-tab="khach-hang">Yêu cầu báo giá <b class="badge" id="badge-leads" hidden></b></a>
       <a href="#ban-nhap" data-tab="ban-nhap">Bản nháp agent <b class="badge" id="badge-drafts" hidden></b></a>
       <a href="#noi-dung" data-tab="noi-dung">Nội dung website</a>
       <a href="#tai-khoan" data-tab="tai-khoan">Tài khoản</a>
@@ -35,10 +37,50 @@
   </header>
 
   <main class="main">
+    <section data-panel="van-don" hidden>
+      <div id="orders-list">
+        <div class="panel-head">
+          <div>
+            <h1>Vận đơn</h1>
+            <p class="muted">Đơn khách tạo trên website. Bấm vào đơn để cập nhật hành trình; tích nhiều đơn để cập nhật cùng lúc.</p>
+          </div>
+          <form class="actions" id="order-search" role="search">
+            <label class="sr" for="order-q">Tìm đơn</label>
+            <input id="order-q" type="search" placeholder="Mã vận đơn, mã đơn, SĐT, tên khách…">
+            <label class="sr" for="order-filter">Lọc trạng thái</label>
+            <select id="order-filter"></select>
+            <button class="btn ghost" type="submit">Tìm</button>
+          </form>
+        </div>
+        <div id="order-counts" class="counts"></div>
+        <div id="bulk-bar" class="bulk" hidden></div>
+        <div class="table-wrap"><table class="otable">
+          <thead><tr><th class="ck"><input type="checkbox" id="ck-all" aria-label="Chọn tất cả"></th><th>Mã vận đơn</th><th>Khách</th><th>Hàng</th><th>Kiện · kg · m³</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+          <tbody id="orders"></tbody>
+        </table></div>
+      </div>
+      <div id="order-detail" hidden></div>
+    </section>
+
+    <section data-panel="khach-tk" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>Tài khoản khách</h1>
+          <p class="muted">Khách tự đăng ký bằng số điện thoại trên website. Khách quên mật khẩu thì cấp mật khẩu mới ở đây rồi báo cho khách qua điện thoại hoặc Zalo.</p>
+        </div>
+        <form class="actions" id="cust-search" role="search">
+          <label class="sr" for="cust-q">Tìm khách</label>
+          <input id="cust-q" type="search" placeholder="SĐT, tên, công ty…">
+          <button class="btn ghost" type="submit">Tìm</button>
+        </form>
+      </div>
+      <div id="customers" class="leads"></div>
+    </section>
+
     <section data-panel="khach-hang" hidden>
       <div class="panel-head">
         <div>
-          <h1>Khách hàng gửi yêu cầu</h1>
+          <h1>Yêu cầu báo giá</h1>
           <p class="muted">Thông tin khách để lại ở trang Liên hệ trên website.</p>
         </div>
         <div class="actions">

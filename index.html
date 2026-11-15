@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&family=Noto+Sans+SC:wght@500&display=swap">
-<link rel="stylesheet" href="assets/site.css?v=20261112b">
+<link rel="stylesheet" href="assets/site.css?v=20261115a">
 </head>
 <body>
 <a class="skip" href="#noi-dung">Bỏ qua menu</a>
@@ -29,6 +29,8 @@
       <a href="#cua-khau">Tình hình cửa khẩu</a>
       <a href="#bang-gia">So sánh cước</a>
       <a href="#tin-tuc">Tin tức</a>
+      <a href="#tra-cuu">Tra cứu vận đơn</a>
+      <a href="#tai-khoan" id="nav-account" class="menu-acct">Đăng nhập</a>
       <a href="#lien-he" class="menu-cta">Nhận báo giá</a>
     </nav>
   </div>
@@ -265,6 +267,26 @@
   </div></section>
 </div>
 
+<!-- ============ TRA CỨU VẬN ĐƠN ============ -->
+<div data-view="tra-cuu" hidden>
+  <section class="page-head"><div class="wrap">
+    <p class="eyebrow">Tra cứu vận đơn</p>
+    <h1>Lô hàng của bạn đang ở đâu?</h1>
+    <p class="lead">Nhập mã vận đơn doortodoor (dạng D2D-261115-K7Q3M) để xem hàng đã đi tới bước nào.</p>
+    <form class="track-form" id="track-form" novalidate>
+      <label for="track-input" class="sr">Mã vận đơn</label>
+      <input id="track-input" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30" placeholder="D2D-261115-K7Q3M">
+      <button class="btn btn-main" type="submit">Tra cứu</button>
+    </form>
+  </div></section>
+  <section class="sec"><div class="wrap narrow" id="track-result" aria-live="polite"></div></section>
+</div>
+
+<!-- ============ KHÁCH HÀNG (assets/account.js dựng nội dung) ============ -->
+<div data-view="tai-khoan" hidden>
+  <div id="acct-root"></div>
+</div>
+
 </main>
 
 <footer class="foot">
@@ -275,8 +297,9 @@
   </div>
 </footer>
 
-<script src="assets/config.js?v=20261112b"></script>
-<script src="assets/site.js?v=20261112b"></script>
-<script src="assets/map.js?v=20261112b"></script>
+<script src="assets/config.js?v=20261115a"></script>
+<script src="assets/site.js?v=20261115a"></script>
+<script src="assets/account.js?v=20261115a"></script>
+<script src="assets/map.js?v=20261115a"></script>
 </body>
 </html>

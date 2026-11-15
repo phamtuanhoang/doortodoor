@@ -145,8 +145,8 @@
   var links = [].slice.call(document.querySelectorAll('.menu a'));
   var menu = document.getElementById('menu'), menuBtn = document.getElementById('menu-btn');
   function route() {
-    var hash = location.hash.slice(1), isSource = hash.indexOf('nguon-') === 0;
-    var v = isSource ? 'cua-khau' : (views.some(function (s) { return s.dataset.view === hash; }) ? hash : 'trang-chu');
+    var hash = location.hash.slice(1), isSource = hash.indexOf('nguon-') === 0, base = hash.split('/')[0];
+    var v = isSource ? 'cua-khau' : (views.some(function (s) { return s.dataset.view === base; }) ? base : 'trang-chu');
     views.forEach(function (s) { s.hidden = s.dataset.view !== v; });
     links.forEach(function (a) { if (a.getAttribute('href') === '#' + v && !a.classList.contains('menu-cta')) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     menu.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false');

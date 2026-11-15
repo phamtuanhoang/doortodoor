@@ -38,7 +38,7 @@
   }
   function fmtTime(s) {
     var d = new Date(s);
-    return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
   function busy(btn, p) { btn.disabled = true; return p.finally(function () { btn.disabled = false; }); }
 
@@ -56,11 +56,11 @@
   $('logout').addEventListener('click', function () { api('POST', '/api/admin/logout', {}).finally(showLogin); });
 
   /* ---------- Điều hướng ---------- */
-  var TABS = ['khach-hang', 'ban-nhap', 'noi-dung', 'tai-khoan'];
+  var TABS = ['van-don', 'khach-tk', 'khach-hang', 'ban-nhap', 'noi-dung', 'tai-khoan'];
   var loaders = {};
   function route() {
-    var t = location.hash.slice(1);
-    if (TABS.indexOf(t) < 0) t = 'khach-hang';
+    var t = location.hash.slice(1).split('/')[0];
+    if (TABS.indexOf(t) < 0) t = 'van-don';
     document.querySelectorAll('[data-panel]').forEach(function (p) { p.hidden = p.dataset.panel !== t; });
     document.querySelectorAll('.tabs a').forEach(function (a) { if (a.dataset.tab === t) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     if (loaders[t]) loaders[t]();
@@ -68,6 +68,7 @@
   window.addEventListener('hashchange', function () { if (!$('app-view').hidden) route(); });
   function refreshBadges() {
     api('GET', '/api/admin/leads?status=new').then(function (j) { var n = j.items.length; $('badge-leads').hidden = !n; $('badge-leads').textContent = n; }).catch(function () {});
+    api('GET', '/api/admin/orders?status=created').then(function (j) { var n = j.items.length; $('badge-orders').hidden = !n; $('badge-orders').textContent = n; }).catch(function () {});
     api('GET', '/api/admin/drafts?status=pending').then(function (j) { var n = j.items.length; $('badge-drafts').hidden = !n; $('badge-drafts').textContent = n; }).catch(function () {});
   }
 
@@ -368,6 +369,211 @@
     busy(e.target.querySelector('button'), api('POST', '/api/admin/users', { username: $('u-name').value.trim(), password: $('u-pass').value })
       .then(function () { $('u-name').value = ''; $('u-pass').value = ''; toast('Đã thêm tài khoản.'); loaders['tai-khoan'](); }).catch(function (er) { toast(er.message, true); }));
   });
+
+  /* ---------- Vận đơn ---------- */
+  var OST = [
+    ['created', 'Đã tạo đơn'], ['received_cn', 'Đã nhập kho Bằng Tường'], ['cn_export', 'Báo quan đầu Trung Quốc'],
+    ['vn_customs', 'Thông quan Việt Nam'], ['in_transit', 'Đang vận chuyển về Hà Nội'], ['at_hn', 'Đã về kho Hà Nội'],
+    ['delivering', 'Đang giao hàng'], ['delivered', 'Đã nhận hàng'], ['cancelled', 'Đã hủy']
+  ];
+  var OLABEL = {}; OST.forEach(function (s) { OLABEL[s[0]] = s[1]; });
+  var OIDX = {}; OST.forEach(function (s, i) { OIDX[s[0]] = i; });
+  var LOCATIONS = ['Kho Bằng Tường', 'Cửa khẩu Hữu Nghị', 'Cửa khẩu Tân Thanh', 'Cửa khẩu Chi Ma', 'Kho Hà Nội'];
+  var DEFAULT_LOC = { received_cn: 'Kho Bằng Tường', at_hn: 'Kho Hà Nội', delivering: 'Kho Hà Nội' };
+  function ost(st) { return h('span', { class: 'ost ost-' + st, text: OLABEL[st] || st }); }
+  function nfmt(n, unit) { return n == null ? null : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) + ' ' + unit; }
+  function statusSelect(id, current) {
+    var sel = h('select', { id: id }, OST.filter(function (s) { return s[0] !== 'created'; }).map(function (s) { return h('option', { value: s[0], text: s[1] }); }));
+    var next = OST[Math.min((OIDX[current] || 0) + 1, 7)][0];
+    sel.value = current === 'delivered' || current === 'cancelled' ? current : next;
+    return sel;
+  }
+  function locInput(id) {
+    var dl = $('loc-list');
+    if (!dl) { dl = h('datalist', { id: 'loc-list' }, LOCATIONS.map(function (l) { return h('option', { value: l }); })); document.body.appendChild(dl); }
+    return h('input', { id: id, list: 'loc-list', maxlength: '160', placeholder: 'Ví dụ: Kho Bằng Tường' });
+  }
+
+  var oFilter = 'open', selected = {};
+  var fsel = $('order-filter');
+  [['open', 'Đang xử lý'], ['', 'Tất cả']].concat(OST).forEach(function (s) { fsel.appendChild(h('option', { value: s[0], text: s[1] })); });
+  fsel.value = oFilter;
+  fsel.addEventListener('change', function () { oFilter = fsel.value; loadOrders(); });
+  $('order-search').addEventListener('submit', function (e) { e.preventDefault(); loadOrders(); });
+
+  loaders['van-don'] = function () {
+    var id = location.hash.split('/')[1];
+    if (id) { $('orders-list').hidden = true; $('order-detail').hidden = false; orderDetail(id); }
+    else { $('order-detail').hidden = true; $('orders-list').hidden = false; loadOrders(); }
+  };
+  function loadOrders() {
+    var tb = $('orders');
+    var q = [];
+    if (oFilter) q.push('status=' + encodeURIComponent(oFilter));
+    if ($('order-q').value.trim()) q.push('q=' + encodeURIComponent($('order-q').value.trim()));
+    api('GET', '/api/admin/orders' + (q.length ? '?' + q.join('&') : '')).then(function (j) {
+      var c = $('order-counts'); c.textContent = '';
+      OST.forEach(function (s) {
+        var n = j.counts[s[0]] || 0; if (!n && s[0] === 'cancelled') return;
+        c.appendChild(h('button', { type: 'button', class: 'chip', 'aria-pressed': String(oFilter === s[0]), text: s[1] + ': ' + n, onclick: function () { oFilter = oFilter === s[0] ? 'open' : s[0]; fsel.value = oFilter; loadOrders(); } }));
+      });
+      selected = {}; $('ck-all').checked = false; drawBulk();
+      tb.textContent = '';
+      if (!j.items.length) { tb.appendChild(h('tr', null, h('td', { colspan: '7', class: 'muted', text: 'Không có vận đơn nào khớp.' }))); return; }
+      j.items.forEach(function (o) {
+        var ck = h('input', { type: 'checkbox', 'aria-label': 'Chọn ' + o.waybill });
+        var tr = h('tr', null, [
+          h('td', { class: 'ck' }, ck),
+          h('td', null, [h('span', { class: 'wb', text: o.waybill }), h('small', { text: 'Mã đơn ' + o.order_code })]),
+          h('td', null, [o.customer_name, h('small', { text: o.phone + (o.customer_company ? ' · ' + o.customer_company : '') })]),
+          h('td', null, [o.item_name, o.brand ? h('small', { text: o.brand }) : null]),
+          h('td', { text: [o.packages + ' kiện', nfmt(o.measured_weight != null ? o.measured_weight : o.weight, 'kg'), nfmt(o.measured_volume != null ? o.measured_volume : o.volume, 'm³')].filter(Boolean).join(' · ') }),
+          h('td', null, ost(o.status)),
+          h('td', null, h('small', { text: fmtTime(o.updated_at) }))
+        ]);
+        ck.addEventListener('click', function (e) { e.stopPropagation(); });
+        ck.addEventListener('change', function () { if (ck.checked) selected[o.id] = o.waybill; else delete selected[o.id]; tr.classList.toggle('sel', ck.checked); drawBulk(); });
+        tr.addEventListener('click', function () { location.hash = '#van-don/' + o.id; });
+        tb.appendChild(tr);
+      });
+    }).catch(function (e) { tb.textContent = ''; tb.appendChild(h('tr', null, h('td', { colspan: '7', text: e.message }))); });
+  }
+  $('ck-all').addEventListener('change', function () {
+    var on = this.checked;
+    document.querySelectorAll('#orders input[type=checkbox]').forEach(function (c) { if (c.checked !== on) { c.checked = on; c.dispatchEvent(new Event('change')); } });
+  });
+  function drawBulk() {
+    var ids = Object.keys(selected), bar = $('bulk-bar');
+    bar.hidden = !ids.length; bar.textContent = '';
+    if (!ids.length) return;
+    var sel = h('select', { 'aria-label': 'Trạng thái mới' }, [h('option', { value: '', text: 'Chọn bước mới…' })].concat(OST.filter(function (s) { return s[0] !== 'created'; }).map(function (s) { return h('option', { value: s[0], text: s[1] }); })));
+    var loc = locInput('bulk-loc'); loc.setAttribute('aria-label', 'Địa điểm');
+    var note = h('input', { maxlength: '1000', placeholder: 'Ghi chú cho khách (không bắt buộc)', 'aria-label': 'Ghi chú cho khách' });
+    sel.addEventListener('change', function () { if (!loc.value && DEFAULT_LOC[sel.value]) loc.value = DEFAULT_LOC[sel.value]; });
+    var go = h('button', { class: 'btn primary', type: 'button', text: 'Cập nhật ' + ids.length + ' đơn' });
+    go.addEventListener('click', function () {
+      if (!sel.value) return toast('Chọn bước mới cho các đơn.', true);
+      busy(go, api('POST', '/api/admin/orders-bulk/events', { ids: ids.map(Number), status: sel.value, location: loc.value, note: note.value })
+        .then(function (j) { toast('Đã cập nhật ' + j.updated + ' đơn.'); loadOrders(); refreshBadges(); }).catch(function (e) { toast(e.message, true); }));
+    });
+    bar.appendChild(h('b', { text: 'Đã chọn ' + ids.length + ' đơn' }));
+    [sel, loc, note, go, h('button', { class: 'btn ghost', type: 'button', text: 'Bỏ chọn', onclick: function () { $('ck-all').checked = false; $('ck-all').dispatchEvent(new Event('change')); } })].forEach(function (x) { bar.appendChild(x); });
+  }
+
+  function orderDetail(id) {
+    var box = $('order-detail');
+    box.textContent = 'Đang tải…';
+    api('GET', '/api/admin/orders/' + encodeURIComponent(id)).then(function (j) {
+      var o = j.order;
+      box.textContent = '';
+      var back = h('a', { href: '#van-don', class: 'btn ghost small', text: '← Danh sách vận đơn' });
+
+      // Cập nhật hành trình
+      var sid = nextId(), lid = nextId(), nid = nextId(), tid = nextId();
+      var sel = statusSelect(sid, o.status), loc = locInput(lid), note = h('textarea', { id: nid, maxlength: '1000', placeholder: 'Ví dụ: đã nhận đủ 8 kiện, kiện 3 móp góc. Khách đọc được ghi chú này.' });
+      var at = h('input', { id: tid, type: 'datetime-local' });
+      if (DEFAULT_LOC[sel.value]) loc.value = DEFAULT_LOC[sel.value];
+      sel.addEventListener('change', function () { if (DEFAULT_LOC[sel.value]) loc.value = DEFAULT_LOC[sel.value]; });
+      var add = h('button', { class: 'btn primary', type: 'button', text: 'Thêm bước vào hành trình' });
+      add.addEventListener('click', function () {
+        busy(add, api('POST', '/api/admin/orders/' + o.id + '/events', { status: sel.value, location: loc.value, note: note.value, at: at.value ? new Date(at.value).toISOString() : undefined })
+          .then(function () { toast('Đã cập nhật hành trình.'); orderDetail(o.id); refreshBadges(); }).catch(function (e) { toast(e.message, true); }));
+      });
+      var addBox = h('div', { class: 'add-ev' }, [h('h3', { text: 'Cập nhật bước mới' }),
+        h('label', { for: sid, text: 'Bước' }), sel, h('label', { for: lid, text: 'Địa điểm' }), loc,
+        h('label', { for: nid, text: 'Ghi chú hiển thị cho khách' }), note,
+        h('label', { for: tid, text: 'Thời gian (để trống = bây giờ)' }), at, h('div', { class: 'actions' }, add)]);
+
+      var evs = h('ol', { class: 'evs' });
+      j.events.slice().reverse().forEach(function (e) {
+        var cust = e.created_by.indexOf('khách') === 0;
+        var del = null;
+        if (e.status !== 'created') {
+          del = h('button', { class: 'btn ghost small', type: 'button', text: 'Xóa', title: 'Xóa bước cập nhật nhầm', onclick: function (ev) {
+            var b = ev.target; if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Bấm lần nữa'; return; }
+            api('DELETE', '/api/admin/orders/' + o.id + '/events/' + e.id).then(function () { toast('Đã xóa bước.'); orderDetail(o.id); }).catch(function (er) { toast(er.message, true); });
+          } });
+        }
+        evs.appendChild(h('li', { class: cust ? 'cust' : null }, [
+          h('div', null, [h('b', { text: OLABEL[e.status] || e.status }), h('div', { class: 'ev-meta', text: [fmtTime(e.created_at), e.location, (cust ? 'Khách' : e.created_by)].filter(Boolean).join(' · ') }), e.note ? h('p', { text: e.note }) : null]),
+          del
+        ]));
+      });
+
+      // Cân đo thực tế
+      var wid = nextId(), vid = nextId(), aid = nextId();
+      var mw = h('input', { id: wid, type: 'number', step: 'any', min: '0', value: o.measured_weight == null ? '' : o.measured_weight });
+      var mv = h('input', { id: vid, type: 'number', step: 'any', min: '0', value: o.measured_volume == null ? '' : o.measured_volume });
+      var an = h('textarea', { id: aid, maxlength: '2000', placeholder: 'Chỉ nhân viên thấy' }); an.value = o.admin_note || '';
+      var save = h('button', { class: 'btn primary small', type: 'button', text: 'Lưu cân đo' });
+      save.addEventListener('click', function () {
+        busy(save, api('PATCH', '/api/admin/orders/' + o.id, { measured_weight: mw.value, measured_volume: mv.value, admin_note: an.value })
+          .then(function () { toast('Đã lưu.'); }).catch(function (e) { toast(e.message, true); }));
+      });
+
+      var info = h('dl', null, [
+        h('dt', { text: 'Mã đơn hàng' }), h('dd', { text: o.order_code }),
+        h('dt', { text: 'Tên hàng' }), h('dd', { text: o.item_name }),
+        h('dt', { text: 'Nhãn hiệu' }), h('dd', { text: o.brand || '—' }),
+        h('dt', { text: 'Số kiện' }), h('dd', { text: o.packages + ' kiện' }),
+        h('dt', { text: 'Khách khai' }), h('dd', { text: [nfmt(o.weight, 'kg'), nfmt(o.volume, 'm³')].filter(Boolean).join(' · ') || 'Không khai' }),
+        h('dt', { text: 'Ghi chú của khách' }), h('dd', { text: o.note || '—' }),
+        h('dt', { text: 'Ngày tạo' }), h('dd', { text: fmtTime(o.created_at) }),
+        o.received_at ? h('dt', { text: 'Khách nhận hàng' }) : null, o.received_at ? h('dd', { text: fmtTime(o.received_at) }) : null
+      ]);
+      box.appendChild(h('div', { class: 'panel-head' }, [h('div', null, [back, h('h1', { class: 'wb-big', text: o.waybill }), h('p', { class: 'muted' }, [ost(o.status)])])]));
+      box.appendChild(h('div', { class: 'od' }, [
+        h('div', { class: 'card' }, [
+          h('h2', { text: 'Khách hàng' }),
+          h('p', null, [h('b', { text: o.customer_name }), ' · ', h('a', { href: 'tel:' + o.phone, text: o.phone }), o.customer_company ? ' · ' + o.customer_company : '']),
+          h('h2', { text: 'Thông tin đơn' }), info,
+          h('h2', { text: 'Cân đo thực tế tại kho' }),
+          h('div', { class: 'row' }, [h('div', { class: 'fld' }, [h('label', { for: wid, text: 'Số kg' }), mw]), h('div', { class: 'fld' }, [h('label', { for: vid, text: 'Số khối (m³)' }), mv])]),
+          h('label', { for: aid, text: 'Ghi chú nội bộ' }), an, h('div', { class: 'actions' }, save)
+        ]),
+        h('div', { class: 'card' }, [addBox, h('h2', { text: 'Hành trình' }), evs.children.length ? evs : h('p', { class: 'muted', text: 'Chưa có bước nào.' })])
+      ]));
+    }).catch(function (e) { box.textContent = e.message; });
+  }
+
+  /* ---------- Tài khoản khách ---------- */
+  loaders['khach-tk'] = function () {
+    var box = $('customers');
+    box.textContent = 'Đang tải…';
+    var q = $('cust-q').value.trim();
+    api('GET', '/api/admin/customers' + (q ? '?q=' + encodeURIComponent(q) : '')).then(function (j) {
+      box.textContent = '';
+      if (!j.items.length) { box.appendChild(h('p', { class: 'empty', text: q ? 'Không có khách nào khớp.' : 'Chưa có khách nào đăng ký tài khoản trên website.' })); return; }
+      j.items.forEach(function (c) {
+        var out = h('div');
+        var reset = h('button', { class: 'btn ghost small', type: 'button', text: 'Cấp mật khẩu mới' });
+        reset.addEventListener('click', function () {
+          if (reset.dataset.sure !== '1') { reset.dataset.sure = '1'; reset.textContent = 'Bấm lần nữa để cấp'; return; }
+          busy(reset, api('POST', '/api/admin/customers/' + c.id + '/reset-password', {}).then(function (r) {
+            reset.dataset.sure = ''; reset.textContent = 'Cấp mật khẩu mới';
+            out.textContent = '';
+            out.appendChild(h('p', { class: 'muted', text: 'Mật khẩu mới (chỉ hiện một lần, báo cho khách rồi khách tự đổi):' }));
+            out.appendChild(h('span', { class: 'temp-pw', text: r.password }));
+          }).catch(function (e) { toast(e.message, true); }));
+        });
+        var lock = h('button', { class: 'btn small ' + (c.disabled ? 'ghost' : 'danger'), type: 'button', text: c.disabled ? 'Mở khóa' : 'Khóa tài khoản' });
+        lock.addEventListener('click', function () {
+          busy(lock, api('PATCH', '/api/admin/customers/' + c.id, { disabled: !c.disabled }).then(function () { toast(c.disabled ? 'Đã mở khóa.' : 'Đã khóa tài khoản.'); loaders['khach-tk'](); }).catch(function (e) { toast(e.message, true); }));
+        });
+        box.appendChild(h('article', { class: 'cust' }, [
+          h('div', null, [
+            h('h3', null, [c.name, c.disabled ? h('span', { class: 'locked', text: ' · Đã khóa' }) : null]),
+            h('p', { class: 'muted', text: c.phone + (c.company ? ' · ' + c.company : '') + ' · ' + c.orders + ' đơn (' + c.open_orders + ' đang xử lý)' }),
+            h('p', { class: 'muted', text: 'Đăng ký ' + fmtTime(c.created_at) + (c.last_login_at ? ' · đăng nhập gần nhất ' + fmtTime(c.last_login_at) : '') }),
+            out
+          ]),
+          h('div', { class: 'actions' }, [h('a', { class: 'btn ghost small', href: '#van-don', text: 'Xem đơn', onclick: function () { $('order-q').value = c.phone; oFilter = ''; fsel.value = ''; } }), reset, lock])
+        ]));
+      });
+    }).catch(function (e) { box.textContent = e.message; });
+  };
+  $('cust-search').addEventListener('submit', function (e) { e.preventDefault(); loaders['khach-tk'](); });
+
 
   /* ---------- Khởi động ---------- */
   api('GET', '/api/admin/me').then(function (j) { showApp(j.username); }).catch(showLogin);
