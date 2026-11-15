@@ -295,6 +295,35 @@ input:focus,select:focus,textarea:focus{border-color:var(--rust-fill);outline:no
 .st-at_hn,.st-delivering{background:var(--rust-fill);color:var(--on-rust)}
 .st-delivered{background:var(--good);color:var(--paper)}
 .st-cancelled{background:transparent;border:1px solid var(--muted);color:var(--muted)}
+.list-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.search-box{flex:1 1 320px;max-width:520px}
+.search-box input{padding-left:40px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239A8470' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E") no-repeat 12px center/18px}
+.view-toggle{display:inline-flex;border:1.5px solid var(--line);border-radius:6px;overflow:hidden;background:var(--card)}
+.view-toggle button{font:inherit;font-size:.92rem;font-weight:600;display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--muted);padding:9px 14px;cursor:pointer;min-height:44px}
+.view-toggle button+button{border-left:1.5px solid var(--line)}
+.view-toggle button[aria-pressed=true]{background:var(--logo);color:var(--paper)}
+.view-toggle svg{width:16px;height:16px;fill:currentColor}
+.olist-box{background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.olist{width:100%;border-collapse:collapse;font-size:.94rem}
+.olist th{background:var(--paper);padding:10px 14px}
+.olist td{padding:11px 14px;vertical-align:middle;border-bottom:1px solid var(--line)}
+.olist tbody tr{cursor:pointer}
+.olist tbody tr:hover{background:color-mix(in srgb,var(--gold) 10%,transparent)}
+.olist tbody tr:last-child td{border-bottom:0}
+.olist .wb-no{color:var(--ink);text-decoration:none;white-space:nowrap}
+.olist tr:hover .wb-no{color:var(--rust);text-decoration:underline}
+.olist .c-code{font-family:var(--mono);font-size:.84rem;color:var(--muted);overflow-wrap:anywhere}
+.olist .c-item{overflow-wrap:anywhere}
+.olist .c-date,.olist .c-pk{white-space:nowrap;color:var(--muted)}
+.pager{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-top:20px}
+.pager:empty{display:none}
+.pager-info{color:var(--muted);font-size:.9rem}
+.pg-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pg{white-space:nowrap;font:inherit;font-weight:600;min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+.pg:hover:not([disabled]){border-color:var(--rust-fill)}
+.pg[aria-current=page]{background:var(--rust-fill);border-color:var(--rust-fill);color:var(--on-rust)}
+.pg[disabled]{opacity:.45;cursor:default}
+.pg-gap{color:var(--muted);padding:0 2px}
 .empty-box{grid-column:1/-1;background:var(--card);border:1.5px dashed var(--line);border-radius:6px;padding:32px;display:grid;gap:12px;justify-items:start;max-width:620px}
 .order-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
 .order-form .wide,.order-form .form-sec{grid-column:1/-1}
@@ -352,6 +381,21 @@ input:focus,select:focus,textarea:focus{border-color:var(--rust-fill);outline:no
   .acct-card{padding:18px}
   .list-bar .btn{width:100%}
   .orders{grid-template-columns:minmax(0,1fr)}
+  .search-box{flex-basis:100%;max-width:none}
+  .view-toggle{width:100%}
+  .view-toggle button{flex:1;justify-content:center}
+  .olist thead{display:none}
+  .olist,.olist tbody{display:block}
+  .olist tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .olist tbody tr:last-child{border-bottom:0}
+  .olist td{display:block;padding:0;border:0}
+  .olist .c-wb{grid-column:1}.olist .c-st{grid-column:2;grid-row:1;justify-self:end}
+  .olist .c-item{grid-column:1/-1;font-weight:600}
+  .olist .c-code{grid-column:1/-1}
+  .olist .c-code::before,.olist .c-pk::before{content:attr(data-l) " ";font-family:var(--body)}
+  .olist .c-pk{grid-column:1;font-size:.86rem}.olist .c-date{grid-column:2;justify-self:end;font-size:.86rem}
+  .pager{justify-content:center}
+  .pg-step{flex:1}
 }
 
 @media (max-width:960px){

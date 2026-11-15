@@ -161,37 +161,106 @@
     return h('section', { class: 'page-head' }, h('div', { class: 'wrap' }, [h('p', { class: 'eyebrow', text: eyebrow }), h('h1', { text: title }), lead ? h('p', { class: 'lead', text: lead }) : null, extra || null]));
   }
 
-  /* ---------- Danh sách đơn ---------- */
-  var filter = 'open';
+  /* ---------- Danh sách đơn: lọc, tìm kiếm, xem dạng lưới / danh sách, phân trang ---------- */
+  var filter = 'open', query = '', page = 1;
+  var view = (function () { try { return localStorage.getItem('d2d_view') || 'grid'; } catch (e) { return 'grid'; } })();
+  var PAGE_SIZE = { grid: 12, list: 20 };
+  function fold(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
   function listPage() {
-    var box = h('div', { class: 'orders' }, h('p', { class: 'empty', text: 'Đang tải đơn hàng…' }));
+    var box = h('div', null, h('p', { class: 'empty', text: 'Đang tải đơn hàng…' }));
+    var pager = h('nav', { class: 'pager', 'aria-label': 'Phân trang' });
     var who = h('div', { class: 'acct-who' }, [
-      h('span', { text: me ? me.name + ' · ' + (me.phone || me.username) : '' }),
+      h('span', { text: me ? whoText(me) : '' }),
       h('a', { href: '#tai-khoan/thong-tin', text: 'Thông tin tài khoản' }),
       h('button', { class: 'linkish', type: 'button', text: 'Đăng xuất', onclick: logout })
     ]);
     var chips = h('div', { class: 'filters', role: 'group', 'aria-label': 'Lọc đơn hàng' });
+    var search = h('input', { type: 'search', id: 'order-search', placeholder: 'Tìm mã vận đơn, mã đơn hàng, tên hàng…', autocomplete: 'off', value: query });
+    search.addEventListener('input', function () { query = search.value; page = 1; draw(); });
+    var views = h('div', { class: 'view-toggle', role: 'group', 'aria-label': 'Kiểu hiển thị' }, [['grid', 'Lưới'], ['list', 'Danh sách']].map(function (v) {
+      return h('button', { type: 'button', 'data-v': v[0], 'aria-pressed': String(view === v[0]), onclick: function () {
+        if (view === v[0]) return;
+        var first = (page - 1) * PAGE_SIZE[view]; // giữ đơn đang xem ở trang mới
+        view = v[0]; try { localStorage.setItem('d2d_view', view); } catch (e) {}
+        page = Math.floor(first / PAGE_SIZE[view]) + 1;
+        [].forEach.call(views.children, function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === view)); });
+        draw();
+      } }, [icon(v[0]), h('span', { text: v[1] })]);
+    }));
     var all = [];
-    function draw() {
+    function draw(scroll) {
+      var q = fold(query.trim());
+      var found = q ? all.filter(function (o) { return fold([o.waybill, o.order_code, o.item_name, o.brand, o.note].join(' ')).indexOf(q) >= 0; }) : all;
       mount(chips, [['open', 'Đang vận chuyển'], ['delivered', 'Đã nhận'], ['all', 'Tất cả']].map(function (f) {
-        var n = all.filter(function (o) { return match(o, f[0]); }).length;
-        return h('button', { type: 'button', class: 'fchip', 'aria-pressed': String(filter === f[0]), text: f[1] + ' (' + n + ')', onclick: function () { filter = f[0]; draw(); } });
+        var n = found.filter(function (o) { return match(o, f[0]); }).length;
+        return h('button', { type: 'button', class: 'fchip', 'aria-pressed': String(filter === f[0]), text: f[1] + ' (' + n + ')', onclick: function () { filter = f[0]; page = 1; draw(); } });
       }));
-      var rows = all.filter(function (o) { return match(o, filter); });
+      mount(pager, []);
       if (!all.length) return mount(box, h('div', { class: 'empty-box' }, [h('h3', { text: 'Bạn chưa có vận đơn nào' }), h('p', { text: 'Tạo vận đơn khi bạn chuẩn bị gửi hàng về kho Bằng Tường. Ghi mã vận đơn lên kiện hàng để kho nhận đúng.' }), h('a', { class: 'btn btn-main', href: '#tai-khoan/tao-don', text: 'Tạo vận đơn đầu tiên' })]));
-      if (!rows.length) return mount(box, h('p', { class: 'empty', text: 'Không có đơn nào trong mục này.' }));
-      mount(box, rows.map(card));
+      var rows = found.filter(function (o) { return match(o, filter); });
+      if (!rows.length) return mount(box, h('p', { class: 'empty', text: q ? 'Không tìm thấy đơn nào khớp "' + query.trim() + '".' : 'Không có đơn nào trong mục này.' }));
+      var size = PAGE_SIZE[view], pages = Math.ceil(rows.length / size);
+      page = Math.min(Math.max(1, page), pages);
+      var slice = rows.slice((page - 1) * size, page * size);
+      mount(box, view === 'grid' ? h('div', { class: 'orders' }, slice.map(card)) : listTable(slice));
+      mount(pager, pagerKids(rows.length, size, pages));
+      if (scroll) box.scrollIntoView({ block: 'start' });
+    }
+    function pagerKids(total, size, pages) {
+      var info = h('p', { class: 'pager-info', text: 'Hiển thị ' + ((page - 1) * size + 1) + '–' + Math.min(page * size, total) + ' trên ' + total + ' đơn' });
+      if (pages < 2) return info;
+      function go(n) { page = n; draw(true); }
+      var nums = [], last = 0;
+      for (var n = 1; n <= pages; n++) {
+        if (pages <= 7 || n === 1 || n === pages || Math.abs(n - page) <= 1) {
+          if (n - last > 1) nums.push(h('span', { class: 'pg-gap', text: '…', 'aria-hidden': 'true' }));
+          nums.push(h('button', { type: 'button', class: 'pg', 'aria-current': n === page ? 'page' : null, 'aria-label': 'Trang ' + n, text: String(n), onclick: (function (k) { return function () { go(k); }; })(n) }));
+          last = n;
+        }
+      }
+      return [info, h('div', { class: 'pg-row' }, [
+        h('button', { type: 'button', class: 'pg pg-step', disabled: page === 1, text: '‹ Trước', onclick: function () { go(page - 1); } })
+      ].concat(nums, [h('button', { type: 'button', class: 'pg pg-step', disabled: page === pages, text: 'Sau ›', onclick: function () { go(page + 1); } })]))];
     }
     function match(o, f) { return f === 'all' || (f === 'delivered' ? o.status === 'delivered' : o.status !== 'delivered' && o.status !== 'cancelled'); }
     api('GET', '/api/customer/orders').then(function (r) { all = r.items; if (!all.some(function (o) { return match(o, filter); }) && all.length) filter = 'all'; draw(); })
       .catch(function (e) { if (e.status === 401) return render(); mount(box, h('p', { class: 'form-msg bad', text: e.message })); });
-    api('GET', '/api/customer/me').then(function (c) { me = c; who.firstChild.textContent = c.name + ' · ' + (c.phone || c.username); }).catch(function () {});
+    api('GET', '/api/customer/me').then(function (c) { me = c; who.firstChild.textContent = whoText(c); }).catch(function () {});
     return [head('Đơn hàng của tôi', 'Vận đơn của bạn', null, who),
       h('section', { class: 'sec acct' }, h('div', { class: 'wrap' }, [
         h('div', { class: 'list-bar' }, [chips, h('a', { class: 'btn btn-main', href: '#tai-khoan/tao-don', text: '+ Tạo vận đơn mới' })]),
-        box
+        h('div', { class: 'list-tools' }, [h('div', { class: 'search-box' }, [h('label', { for: 'order-search', class: 'sr', text: 'Tìm đơn hàng' }), search]), views]),
+        box, pager
       ]))];
   }
+  function whoText(c) { var id = c.phone || c.username; return c.name && c.name !== id ? c.name + ' · ' + id : id; }
+  function icon(kind) {
+    var ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16'); svg.setAttribute('aria-hidden', 'true');
+    (kind === 'grid' ? [[1, 1, 6, 6], [9, 1, 6, 6], [1, 9, 6, 6], [9, 9, 6, 6]] : [[1, 2, 14, 2.4], [1, 6.8, 14, 2.4], [1, 11.6, 14, 2.4]]).forEach(function (r) {
+      var e = document.createElementNS(ns, 'rect'); e.setAttribute('x', r[0]); e.setAttribute('y', r[1]); e.setAttribute('width', r[2]); e.setAttribute('height', r[3]); e.setAttribute('rx', '1'); svg.appendChild(e);
+    });
+    return svg;
+  }
+  function listTable(rows) {
+    return h('div', { class: 'olist-box' }, h('table', { class: 'olist' }, [
+      h('thead', null, h('tr', null, ['Mã vận đơn', 'Mã đơn hàng', 'Tên hàng', 'Kiện', 'Trạng thái', 'Ngày tạo'].map(function (t) { return h('th', { scope: 'col', text: t }); }))),
+      h('tbody', null, rows.map(function (o) {
+        var href = '#tai-khoan/don/' + o.waybill;
+        var tr = h('tr', null, [
+          h('td', { class: 'c-wb' }, h('a', { href: href, class: 'wb-no', text: o.waybill })),
+          h('td', { class: 'c-code', 'data-l': 'Mã đơn', text: o.order_code }),
+          h('td', { class: 'c-item', text: o.item_name + (o.brand ? ' · ' + o.brand : '') }),
+          h('td', { class: 'c-pk num', 'data-l': 'Kiện', text: String(o.packages) }),
+          h('td', { class: 'c-st' }, badge(o.status)),
+          h('td', { class: 'c-date num', text: fmtDay(o.created_at) })
+        ]);
+        tr.addEventListener('click', function (e) { if (e.target.tagName !== 'A') location.hash = href; });
+        return tr;
+      }))
+    ]));
+  }
+  function fmtDay(iso) { try { return new Date(iso).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }); } catch (e) { return ''; } }
   function card(o) {
     var i = IDX[o.status], pct = o.status === 'cancelled' ? 0 : Math.round(((i || 0) / (STEPS.length - 1)) * 100);
     var bar = h('span', { class: 'mini-bar', 'aria-hidden': 'true' }, h('i'));
