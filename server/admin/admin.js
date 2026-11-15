@@ -64,7 +64,7 @@
   $('logout').addEventListener('click', function () { api('POST', '/api/admin/logout', {}).finally(showLogin); });
 
   /* ---------- Điều hướng ---------- */
-  var TABS = ['van-don', 'khach-tk', 'khach-hang', 'ban-nhap', 'noi-dung', 'tai-khoan'];
+  var TABS = ['van-don', 'khach-tk', 'khach-hang', 'hoi-thoai', 'ban-nhap', 'noi-dung', 'tai-khoan'];
   var loaders = {};
   function route() {
     var t = location.hash.slice(1).split('/')[0];
@@ -604,6 +604,44 @@
     inp.order_code.focus();
   }
 
+
+  /* ---------- Hội thoại trợ lý AI ---------- */
+  var PAGE_NAME = { 'trang-chu': 'Trang chủ', 'dich-vu': 'Dịch vụ', 'cua-khau': 'Tình hình cửa khẩu', 'bang-gia': 'So sánh cước', 'tin-tuc': 'Tin tức', 'lien-he': 'Nhận báo giá', 'tra-cuu': 'Tra cứu vận đơn', 'tai-khoan': 'Tài khoản khách' };
+  loaders['hoi-thoai'] = function () {
+    var list = $('chat-list');
+    list.textContent = 'Đang tải…';
+    var q = $('chat-q').value.trim();
+    api('GET', '/api/admin/chats' + (q ? '?q=' + encodeURIComponent(q) : '')).then(function (j) {
+      $('chat-stat').textContent = (j.enabled ? 'Trợ lý đang bật. ' : 'Trợ lý CHƯA bật (chưa gắn khóa API trên Railway). ') + 'Hôm nay khách đã hỏi ' + j.today + ' câu (giới hạn ' + j.limit + ' lượt trả lời mỗi ngày). Yêu cầu báo giá khách để lại qua chat nằm ở tab "Yêu cầu báo giá".';
+      list.textContent = '';
+      if (!j.items.length) { list.appendChild(h('p', { class: 'empty', text: q ? 'Không có hội thoại nào khớp.' : 'Chưa có hội thoại nào.' })); return; }
+      j.items.forEach(function (c) {
+        var b = h('button', { type: 'button', class: 'chat-item' }, [
+          h('b', { text: c.first_question || '(không có câu hỏi)' }),
+          h('small', { text: fmtTime(c.last) + ' · ' + c.n + ' tin · ' + (PAGE_NAME[c.page] || c.page || '') })
+        ]);
+        b.addEventListener('click', function () {
+          [].forEach.call(list.querySelectorAll('.chat-item'), function (x) { x.classList.toggle('on', x === b); });
+          showChat(c.session_id);
+        });
+        list.appendChild(b);
+      });
+    }).catch(function (e) { list.textContent = e.message; });
+  };
+  function showChat(sid) {
+    var v = $('chat-view');
+    v.textContent = 'Đang tải…';
+    api('GET', '/api/admin/chats/' + encodeURIComponent(sid)).then(function (j) {
+      v.textContent = '';
+      j.items.forEach(function (m) {
+        v.appendChild(h('div', { class: 'cm ' + (m.role === 'user' ? 'cm-user' : 'cm-bot') }, [
+          h('small', { text: (m.role === 'user' ? 'Khách' : 'Trợ lý') + ' · ' + fmtTime(m.created_at) }),
+          h('p', { text: m.content })
+        ]));
+      });
+    }).catch(function (e) { v.textContent = e.message; });
+  }
+  $('chat-search').addEventListener('submit', function (e) { e.preventDefault(); loaders['hoi-thoai'](); });
 
   /* ---------- Khởi động ---------- */
   api('GET', '/api/admin/me').then(function (j) { showApp(j.username); }).catch(showLogin);

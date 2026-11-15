@@ -6,6 +6,7 @@
   - Agent gửi bản nháp -> bảng drafts, admin duyệt mới hiện lên web
   - Trang quản trị tại /admin
   - Khách hàng, vận đơn, hành trình: customers.js
+  - Trợ lý chat AI: chat.js (cần ANTHROPIC_API_KEY)
 
   Biến môi trường:
     DATABASE_URL       chuỗi kết nối Postgres (Railway tự cấp)
@@ -23,6 +24,7 @@ const { Pool } = require('pg');
 const DEFAULT_CONTENT = require('./default-content.json');
 const mountCustomers = require('./customers');
 const makeCaptcha = require('./captcha');
+const mountChat = require('./chat');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
@@ -437,6 +439,9 @@ app.use('/api/admin', admin);
 /* ---------- Khách hàng, vận đơn, tra cứu (customers.js) ---------- */
 const customers = mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET, captcha });
 
+/* ---------- Trợ lý chat AI (chat.js) ---------- */
+const chat = mountChat({ app, admin, pool, requireAdmin, rateLimit, publicCors });
+
 /* ---------- Trang quản trị ---------- */
 app.use('/admin', express.static(path.join(__dirname, 'admin'), {
   setHeaders: res => {
@@ -455,5 +460,6 @@ app.use((err, req, res, next) => {
 
 initDb()
   .then(() => customers.initTables())
+  .then(() => chat.initTables())
   .then(() => app.listen(PORT, () => console.log('doortodoor server chạy ở cổng', PORT)))
   .catch(e => { console.error('Không khởi tạo được cơ sở dữ liệu', e); process.exit(1); });

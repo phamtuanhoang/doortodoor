@@ -35,6 +35,7 @@
       <a href="#van-don" data-tab="van-don">Vận đơn <b class="badge" id="badge-orders" hidden></b></a>
       <a href="#khach-tk" data-tab="khach-tk">Tài khoản khách</a>
       <a href="#khach-hang" data-tab="khach-hang">Yêu cầu báo giá <b class="badge" id="badge-leads" hidden></b></a>
+      <a href="#hoi-thoai" data-tab="hoi-thoai">Hội thoại</a>
       <a href="#ban-nhap" data-tab="ban-nhap">Bản nháp agent <b class="badge" id="badge-drafts" hidden></b></a>
       <a href="#noi-dung" data-tab="noi-dung">Nội dung website</a>
       <a href="#tai-khoan" data-tab="tai-khoan">Tài khoản</a>
@@ -66,6 +67,24 @@
         </table></div>
       </div>
       <div id="order-detail" hidden></div>
+    </section>
+
+    <section data-panel="hoi-thoai" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>Hội thoại với trợ lý AI</h1>
+          <p class="muted" id="chat-stat">Khách hỏi gì trên khung chat ở góc phải website. Yêu cầu báo giá khách để lại qua chat nằm ở tab "Yêu cầu báo giá".</p>
+        </div>
+        <form class="actions" id="chat-search" role="search">
+          <label class="sr" for="chat-q">Tìm trong hội thoại</label>
+          <input id="chat-q" type="search" placeholder="Tìm nội dung…">
+          <button class="btn ghost" type="submit">Tìm</button>
+        </form>
+      </div>
+      <div class="chat-admin">
+        <div id="chat-list" class="chat-list"></div>
+        <div id="chat-view" class="card chat-view"><p class="muted">Chọn một hội thoại để xem.</p></div>
+      </div>
     </section>
 
     <section data-panel="khach-tk" hidden>
