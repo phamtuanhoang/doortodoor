@@ -108,6 +108,37 @@
     }));
   }
 
+  /* ---------- Quy định mật khẩu khách: ít nhất 8 ký tự, có ký tự đặc biệt ---------- */
+  var PW_RULE = 'Mật khẩu cần ít nhất 8 ký tự, trong đó có ít nhất 1 ký tự đặc biệt (ví dụ ! @ # $ % - _).';
+  function pwOk(v) { return v.length >= 8 && /[^A-Za-z0-9]/.test(v); }
+  function pwChecklist(input) { // danh sách điều kiện, tự tích khi gõ
+    var items = [['len', 'Ít nhất 8 ký tự', function (v) { return v.length >= 8; }], ['sp', 'Có ít nhất 1 ký tự đặc biệt (! @ # $ % - _ …)', function (v) { return /[^A-Za-z0-9]/.test(v); }]];
+    var ul = h('ul', { class: 'pw-rules', 'aria-live': 'polite' }, items.map(function (it) { return h('li', { 'data-k': it[0], text: it[1] }); }));
+    function upd() { items.forEach(function (it, i) { ul.children[i].classList.toggle('ok', it[2](input.value)); }); }
+    input.addEventListener('input', upd); upd();
+    return ul;
+  }
+
+  /* ---------- Captcha ---------- */
+  function captchaBox(id) {
+    var token = null;
+    var img = h('img', { class: 'cap-img', alt: 'Ảnh mã xác nhận gồm 5 ký tự', width: '160', height: '54' });
+    var input = h('input', { id: id, autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', maxlength: '8', placeholder: 'Nhập 5 ký tự trong ảnh', required: true });
+    function load() {
+      input.value = '';
+      return api('GET', '/api/captcha', undefined, false).then(function (j) { token = j.token; img.src = j.image; }).catch(function () { img.alt = 'Không tải được mã xác nhận, bấm Đổi mã khác'; });
+    }
+    var again = h('button', { class: 'linkish', type: 'button', text: 'Đổi mã khác', onclick: function () { load(); input.focus(); } });
+    load();
+    return {
+      el: h('div', { class: 'f' }, [h('label', { for: id }, ['Mã xác nhận', h('span', { class: 'req', text: ' *' })]), h('div', { class: 'cap-row' }, [img, again]), input]),
+      value: function () { return { captcha_token: token, captcha: input.value.trim() }; },
+      empty: function () { return !input.value.trim(); },
+      focus: function () { input.focus(); },
+      reload: load
+    };
+  }
+
   /* ---------- Đăng nhập / đăng ký ---------- */
   function authPage(mode) {
     var isReg = mode === 'dang-ky';
@@ -115,36 +146,47 @@
       h('a', { href: '#tai-khoan', role: 'tab', 'aria-selected': String(!isReg), text: 'Đăng nhập' }),
       h('a', { href: '#tai-khoan/dang-ky', role: 'tab', 'aria-selected': String(isReg), text: 'Tạo tài khoản' })
     ]);
-    var phone = h('input', { type: isReg ? 'tel' : 'text', autocomplete: isReg ? 'tel' : 'username', autocapitalize: 'none', spellcheck: 'false', inputmode: isReg ? 'tel' : null, maxlength: '40', placeholder: '0912 345 678', required: true });
+    var idInput = h('input', { type: 'text', autocomplete: isReg ? 'email' : 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: '160', placeholder: isReg ? 'Ví dụ: 0912 345 678 hoặc ban@vidu.com' : 'Email, số điện thoại hoặc tên đăng nhập', required: true });
     var pw = h('input', { type: 'password', autocomplete: isReg ? 'new-password' : 'current-password', maxlength: '200', required: true });
     var name = h('input', { autocomplete: 'name', maxlength: '120' });
     var company = h('input', { autocomplete: 'organization', maxlength: '160' });
     var consent = h('input', { type: 'checkbox', id: 'c-consent' });
+    var cap = captchaBox('c-cap');
     var msg = msgEl();
     var btn = h('button', { class: 'btn btn-main', type: 'submit', text: isReg ? 'Tạo tài khoản' : 'Đăng nhập' });
     var form = h('form', { class: 'acct-card', novalidate: true }, [
       tabs,
       isReg ? field('c-name', 'Họ tên', name, null, true) : null,
-      field('c-phone', isReg ? 'Số điện thoại' : 'Số điện thoại hoặc tên đăng nhập', phone, isReg ? 'Số này dùng để đăng nhập và để nhân viên liên hệ khi giao hàng.' : null, true),
-      field('c-pw', 'Mật khẩu', pw, isReg ? 'Ít nhất 6 ký tự.' : null, true),
+      field('c-id', isReg ? 'Email hoặc số điện thoại' : 'Tài khoản', idInput, isReg ? 'Dùng để đăng nhập. Nếu nhập số điện thoại, nhân viên sẽ gọi số này khi giao hàng.' : null, true),
+      field('c-pw', 'Mật khẩu', pw, null, true),
+      isReg ? pwChecklist(pw) : null,
       isReg ? field('c-company', 'Công ty / cửa hàng', company) : null,
-      isReg ? h('div', { class: 'f consent' }, [consent, h('label', { for: 'c-consent', text: 'Tôi đồng ý để doortodoor lưu số điện thoại, họ tên và thông tin đơn hàng để vận chuyển và liên hệ giao hàng.' })]) : null,
+      cap.el,
+      isReg ? h('div', { class: 'f consent' }, [consent, h('label', { for: 'c-consent', text: 'Tôi đồng ý để doortodoor lưu email hoặc số điện thoại, họ tên và thông tin đơn hàng để vận chuyển và liên hệ giao hàng.' })]) : null,
       h('div', { class: 'form-foot' }, [btn, msg]),
       isReg ? null : h('p', { class: 'hint', text: 'Quên mật khẩu? Liên hệ hotline doortodoor, nhân viên sẽ cấp lại mật khẩu mới cho bạn.' })
     ]);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var body = { phone: phone.value, password: pw.value };
+      var idv = idInput.value.trim();
+      if (!idv) return say(msg, isReg ? 'Vui lòng nhập email hoặc số điện thoại.' : 'Vui lòng nhập tài khoản.'), idInput.focus();
+      var body = { password: pw.value };
       if (isReg) {
         if (!name.value.trim()) return say(msg, 'Vui lòng nhập họ tên.'), name.focus();
-        if (pw.value.length < 6) return say(msg, 'Mật khẩu cần ít nhất 6 ký tự.'), pw.focus();
+        if (idv.indexOf('@') >= 0 ? !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(idv) : !/^(\+?84|0)[35789][\d\s.\-]{8,12}$/.test(idv)) return say(msg, 'Nhập số di động Việt Nam (ví dụ 0912 345 678) hoặc email hợp lệ.'), idInput.focus();
+        if (!pwOk(pw.value)) return say(msg, PW_RULE), pw.focus();
         if (!consent.checked) return say(msg, 'Vui lòng đánh dấu đồng ý để tạo tài khoản.'), consent.focus();
-        body.name = name.value; body.company = company.value; body.consent = true;
+        body.contact = idv; body.name = name.value; body.company = company.value; body.consent = true;
+      } else {
+        if (!pw.value) return say(msg, 'Vui lòng nhập mật khẩu.'), pw.focus();
+        body.login = idv;
       }
+      if (cap.empty()) return say(msg, 'Vui lòng nhập mã xác nhận trong ảnh.'), cap.focus();
+      var c = cap.value(); body.captcha_token = c.captcha_token; body.captcha = c.captcha;
       busy(btn, api('POST', '/api/customer/' + (isReg ? 'register' : 'login'), body, false).then(function (r) {
         store.set(r.token); me = r.customer; updateNav();
         if (location.hash === '#tai-khoan') render(); else location.hash = '#tai-khoan';
-      }).catch(function (err) { say(msg, err.message); }));
+      }).catch(function (err) { say(msg, err.message); cap.reload(); }));
     });
     return [head('Khách hàng', isReg ? 'Tạo tài khoản để gửi vận đơn' : 'Đăng nhập để theo dõi đơn hàng',
       'Tạo vận đơn cho hàng từ Trung Quốc về Việt Nam và xem hàng đang ở đâu trên hành trình.'),
@@ -233,7 +275,7 @@
         box, pager
       ]))];
   }
-  function whoText(c) { var id = c.phone || c.username; return c.name && c.name !== id ? c.name + ' · ' + id : id; }
+  function whoText(c) { var id = c.phone || c.email || c.username; return c.name && c.name !== id ? c.name + ' · ' + id : id; }
   function icon(kind) {
     var ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', '0 0 16 16'); svg.setAttribute('aria-hidden', 'true');
@@ -398,7 +440,7 @@
     var name = h('input', { autocomplete: 'name', maxlength: '120', value: (me && me.name) || '' });
     var company = h('input', { autocomplete: 'organization', maxlength: '160', value: (me && me.company) || '' });
     var m1 = msgEl(), b1 = h('button', { class: 'btn btn-main', type: 'submit', text: 'Lưu thông tin' });
-    var f1 = h('form', { class: 'acct-card', novalidate: true }, [h('h2', { text: 'Thông tin' }), h('p', { class: 'hint', text: 'Tài khoản đăng nhập: ' + ((me && (me.phone || me.username)) || '') }),
+    var f1 = h('form', { class: 'acct-card', novalidate: true }, [h('h2', { text: 'Thông tin' }), h('p', { class: 'hint', text: 'Tài khoản đăng nhập: ' + ((me && (me.phone || me.email || me.username)) || '') }),
       field('p-name', 'Họ tên', name, null, true), field('p-company', 'Công ty / cửa hàng', company), h('div', { class: 'form-foot' }, [b1, m1])]);
     f1.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -407,10 +449,10 @@
     var cur = h('input', { type: 'password', autocomplete: 'current-password' }), nw = h('input', { type: 'password', autocomplete: 'new-password' });
     var m2 = msgEl(), b2 = h('button', { class: 'btn btn-main', type: 'submit', text: 'Đổi mật khẩu' });
     var f2 = h('form', { class: 'acct-card', novalidate: true }, [h('h2', { text: 'Đổi mật khẩu' }),
-      field('p-cur', 'Mật khẩu hiện tại', cur), field('p-new', 'Mật khẩu mới', nw, 'Ít nhất 6 ký tự. Các thiết bị khác đang đăng nhập sẽ bị đăng xuất.'), h('div', { class: 'form-foot' }, [b2, m2])]);
+      field('p-cur', 'Mật khẩu hiện tại', cur), field('p-new', 'Mật khẩu mới', nw, 'Các thiết bị khác đang đăng nhập sẽ bị đăng xuất.'), pwChecklist(nw), h('div', { class: 'form-foot' }, [b2, m2])]);
     f2.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (nw.value.length < 6) return say(m2, 'Mật khẩu mới cần ít nhất 6 ký tự.');
+      if (!pwOk(nw.value)) return say(m2, PW_RULE);
       busy(b2, api('POST', '/api/customer/password', { current: cur.value, next: nw.value }).then(function (r) { store.set(r.token); f2.reset(); say(m2, 'Đã đổi mật khẩu.', true); }).catch(function (err) { say(m2, err.message); }));
     });
     if (!me) api('GET', '/api/customer/me').then(function (c) { me = c; render(); }).catch(function () {});

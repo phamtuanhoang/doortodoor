@@ -28,7 +28,7 @@ const CONFIRMABLE = ['at_hn'];
 const LEGACY = { cn_export: 'received_cn', vn_customs: 'received_cn', in_transit: 'received_cn', delivering: 'at_hn' };
 const TOKEN_DAYS = 30;
 
-module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET }) {
+module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET, captcha }) {
   /* ---------- Bảng dữ liệu ---------- */
   async function initTables() {
     await pool.query(`
@@ -79,6 +79,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
     // Tài khoản do nhân viên tạo có thể dùng tên đăng nhập thay cho số điện thoại
     await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS username TEXT UNIQUE');
     await pool.query('ALTER TABLE customers ALTER COLUMN phone DROP NOT NULL');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT UNIQUE');
     for (const [from, to] of Object.entries(LEGACY)) {
       await pool.query('UPDATE orders SET status = $2 WHERE status = $1', [from, to]);
       await pool.query('UPDATE order_events SET status = $2 WHERE status = $1', [from, to]);
@@ -103,7 +104,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       const h = req.headers.authorization || '';
       const p = read(h.startsWith('Bearer ') ? h.slice(7) : '');
       if (!p) return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
-      const { rows } = await pool.query('SELECT id, phone, username, name, company, token_version, disabled, created_at FROM customers WHERE id = $1', [p.cid]);
+      const { rows } = await pool.query('SELECT id, phone, email, username, name, company, token_version, disabled, created_at FROM customers WHERE id = $1', [p.cid]);
       const c = rows[0];
       if (!c || c.token_version !== p.v) return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
       if (c.disabled) return res.status(403).json({ error: 'Tài khoản đang bị khóa. Vui lòng liên hệ doortodoor.' });
@@ -120,7 +121,16 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
     return /^0[35789]\d{8}$/.test(s) ? s : null;
   }
   const normUser = v => { const s = String(v || '').trim().toLowerCase(); return /^[a-z][a-z0-9._-]{2,39}$/.test(s) ? s : null; };
-  const loginId = c => c.phone || c.username;
+  const normEmail = v => { const s = String(v || '').trim().toLowerCase(); return s.length <= 160 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s) ? s : null; };
+  const loginId = c => c.phone || c.email || c.username;
+  // Mật khẩu khách: ít nhất 8 ký tự, có ít nhất 1 ký tự đặc biệt
+  const PW_RULE = 'Mật khẩu cần ít nhất 8 ký tự, trong đó có ít nhất 1 ký tự đặc biệt (ví dụ ! @ # $ % - _).';
+  const strongPw = pw => typeof pw === 'string' && pw.length >= 8 && pw.length <= 200 && /[^A-Za-z0-9]/.test(pw);
+  function whichId(raw) { // số điện thoại, email hoặc tên đăng nhập
+    const phone = normPhone(raw); if (phone) return { col: 'phone', val: phone };
+    if (String(raw || '').indexOf('@') >= 0) { const e = normEmail(raw); return e ? { col: 'email', val: e } : null; }
+    const u = normUser(raw); return u ? { col: 'username', val: u } : null;
+  }
   const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   function optNum(v, max) {
     if (v === undefined || v === null || v === '') return { ok: true, val: null };
@@ -189,47 +199,49 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   cr.use(cors);
 
   const registerLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 8 });
-  cr.post('/register', registerLimit, json, async (req, res, next) => {
+  cr.post('/register', registerLimit, json, captcha.require, async (req, res, next) => {
     try {
       const b = req.body || {};
-      const phone = normPhone(b.phone), name = str(b.name, 120), company = str(b.company, 160);
+      const raw = b.contact !== undefined ? b.contact : (b.email || b.phone);
+      const id = whichId(raw), name = str(b.name, 120), company = str(b.company, 160);
       const pw = typeof b.password === 'string' ? b.password : '';
-      if (!phone) return res.status(400).json({ error: 'Số điện thoại chưa đúng. Nhập số di động Việt Nam 10 số, ví dụ 0912 345 678.' });
+      if (!id || id.col === 'username') return res.status(400).json({ error: String(raw || '').indexOf('@') >= 0 ? 'Email chưa đúng định dạng.' : 'Nhập số di động Việt Nam 10 số (ví dụ 0912 345 678) hoặc địa chỉ email.' });
       if (!name) return res.status(400).json({ error: 'Vui lòng nhập họ tên.' });
-      if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Mật khẩu cần ít nhất 6 ký tự.' });
+      if (!strongPw(pw)) return res.status(400).json({ error: PW_RULE });
       if (b.consent !== true) return res.status(400).json({ error: 'Vui lòng đồng ý để doortodoor lưu thông tin phục vụ vận chuyển.' });
       const { rows } = await pool.query(
-        'INSERT INTO customers (phone, name, company, password_hash) VALUES ($1, $2, $3, $4) ON CONFLICT (phone) DO NOTHING RETURNING id, phone, name, company, token_version',
-        [phone, name, company || null, await bcrypt.hash(pw, 10)]
+        `INSERT INTO customers (${id.col}, name, company, password_hash) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING id, phone, email, username, name, company, token_version`,
+        [id.val, name, company || null, await bcrypt.hash(pw, 10)]
       );
-      if (!rows[0]) return res.status(409).json({ error: 'Số điện thoại này đã có tài khoản. Bạn đăng nhập, hoặc liên hệ doortodoor nếu quên mật khẩu.' });
-      res.status(201).json({ token: issue(rows[0]), customer: { phone, name, company: company || null } });
+      if (!rows[0]) return res.status(409).json({ error: (id.col === 'email' ? 'Email' : 'Số điện thoại') + ' này đã có tài khoản. Bạn đăng nhập, hoặc liên hệ doortodoor nếu quên mật khẩu.' });
+      const c = rows[0];
+      res.status(201).json({ token: issue(c), customer: { phone: c.phone, email: c.email, username: c.username, name: c.name, company: c.company } });
     } catch (e) { next(e); }
   });
 
   const loginLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 15 });
   const phoneFails = failLimiter(8, 15 * 60 * 1000);
-  cr.post('/login', loginLimit, json, async (req, res, next) => {
+  cr.post('/login', loginLimit, json, captcha.require, async (req, res, next) => {
     try {
       const b = req.body || {};
       const raw = b.login !== undefined ? b.login : b.phone;
-      const phone = normPhone(raw), user = phone ? null : normUser(raw), pw = typeof b.password === 'string' ? b.password : '';
-      const key = phone || user;
-      if (!key || !pw) return res.status(400).json({ error: 'Nhập số điện thoại (hoặc tên đăng nhập) và mật khẩu.' });
+      const id = whichId(raw), pw = typeof b.password === 'string' ? b.password : '';
+      const key = id && id.val;
+      if (!key || !pw) return res.status(400).json({ error: 'Nhập email, số điện thoại hoặc tên đăng nhập, và mật khẩu.' });
       if (phoneFails.blocked(key)) return res.status(429).json({ error: 'Sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.' });
-      const { rows } = await pool.query(phone ? 'SELECT * FROM customers WHERE phone = $1' : 'SELECT * FROM customers WHERE username = $1', [key]);
+      const { rows } = await pool.query(`SELECT * FROM customers WHERE ${id.col} = $1`, [key]);
       const c = rows[0];
       if (!c || !(await bcrypt.compare(pw, c.password_hash))) { phoneFails.fail(key); return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu.' }); }
       if (c.disabled) return res.status(403).json({ error: 'Tài khoản đang bị khóa. Vui lòng liên hệ doortodoor.' });
       phoneFails.clear(key);
       await pool.query('UPDATE customers SET last_login_at = now() WHERE id = $1', [c.id]);
-      res.json({ token: issue(c), customer: { phone: c.phone, username: c.username, name: c.name, company: c.company } });
+      res.json({ token: issue(c), customer: { phone: c.phone, email: c.email, username: c.username, name: c.name, company: c.company } });
     } catch (e) { next(e); }
   });
 
   cr.get('/me', requireCustomer, (req, res) => {
     const c = req.customer;
-    res.json({ phone: c.phone, username: c.username, name: c.name, company: c.company, created_at: c.created_at });
+    res.json({ phone: c.phone, email: c.email, username: c.username, name: c.name, company: c.company, created_at: c.created_at });
   });
   cr.patch('/me', requireCustomer, json, async (req, res, next) => {
     try {
@@ -242,7 +254,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   cr.post('/password', requireCustomer, json, async (req, res, next) => {
     try {
       const { current, next: nw } = req.body || {};
-      if (typeof nw !== 'string' || nw.length < 6 || nw.length > 200) return res.status(400).json({ error: 'Mật khẩu mới cần ít nhất 6 ký tự.' });
+      if (!strongPw(nw)) return res.status(400).json({ error: PW_RULE });
       const { rows } = await pool.query('SELECT password_hash, token_version FROM customers WHERE id = $1', [req.customer.id]);
       if (!(await bcrypt.compare(String(current || ''), rows[0].password_hash))) return res.status(401).json({ error: 'Mật khẩu hiện tại chưa đúng.' });
       const r = await pool.query('UPDATE customers SET password_hash = $2, token_version = token_version + 1 WHERE id = $1 RETURNING id, token_version',
@@ -357,10 +369,10 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       if (q) {
         params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%');
         const p = `$${params.length}`;
-        where.push(`(o.waybill ILIKE ${p} OR o.order_code ILIKE ${p} OR o.item_name ILIKE ${p} OR o.brand ILIKE ${p} OR c.phone ILIKE ${p} OR c.username ILIKE ${p} OR c.name ILIKE ${p})`);
+        where.push(`(o.waybill ILIKE ${p} OR o.order_code ILIKE ${p} OR o.item_name ILIKE ${p} OR o.brand ILIKE ${p} OR c.phone ILIKE ${p} OR c.email ILIKE ${p} OR c.username ILIKE ${p} OR c.name ILIKE ${p})`);
       }
       const { rows } = await pool.query(
-        `SELECT o.*, COALESCE(c.phone, c.username) AS phone, c.name AS customer_name, c.company AS customer_company
+        `SELECT o.*, COALESCE(c.phone, c.email, c.username) AS phone, c.name AS customer_name, c.company AS customer_company
          FROM orders o JOIN customers c ON c.id = o.customer_id
          ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY o.updated_at DESC LIMIT 300`, params);
       const counts = await pool.query('SELECT status, count(*)::int AS n FROM orders GROUP BY status');
@@ -369,7 +381,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   });
   async function adminOrder(id) {
     const { rows } = await pool.query(
-      `SELECT o.*, COALESCE(c.phone, c.username) AS phone, c.phone AS real_phone, c.name AS customer_name, c.company AS customer_company, c.id AS cid
+      `SELECT o.*, COALESCE(c.phone, c.email, c.username) AS phone, c.phone AS real_phone, c.name AS customer_name, c.company AS customer_company, c.id AS cid
        FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id = $1`, [Number(id)]);
     return rows[0];
   }
@@ -446,9 +458,9 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       const q = str(req.query.q, 80);
       const params = [];
       let where = '';
-      if (q) { params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); where = 'WHERE c.phone ILIKE $1 OR c.username ILIKE $1 OR c.name ILIKE $1 OR c.company ILIKE $1'; }
+      if (q) { params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); where = 'WHERE c.phone ILIKE $1 OR c.email ILIKE $1 OR c.username ILIKE $1 OR c.name ILIKE $1 OR c.company ILIKE $1'; }
       const { rows } = await pool.query(
-        `SELECT c.id, c.phone, c.username, c.name, c.company, c.disabled, c.created_at, c.last_login_at,
+        `SELECT c.id, c.phone, c.email, c.username, c.name, c.company, c.disabled, c.created_at, c.last_login_at,
            count(o.id)::int AS orders, count(o.id) FILTER (WHERE o.status NOT IN ('delivered','cancelled'))::int AS open_orders
          FROM customers c LEFT JOIN orders o ON o.customer_id = c.id ${where}
          GROUP BY c.id ORDER BY c.created_at DESC LIMIT 300`, params);
@@ -458,18 +470,19 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   admin.post('/customers', requireAdmin, aj, async (req, res, next) => { // nhân viên tạo tài khoản cho khách
     try {
       const b = req.body || {};
-      const phone = b.phone ? normPhone(b.phone) : null, user = b.username ? normUser(b.username) : null;
-      const name = str(b.name, 120) || user || phone, company = str(b.company, 160), pw = typeof b.password === 'string' ? b.password : '';
+      const phone = b.phone ? normPhone(b.phone) : null, user = b.username ? normUser(b.username) : null, email = b.email ? normEmail(b.email) : null;
+      const name = str(b.name, 120) || user || phone || email, company = str(b.company, 160), pw = typeof b.password === 'string' ? b.password : '';
       if (b.phone && !phone) return res.status(400).json({ error: 'Số điện thoại chưa đúng (số di động Việt Nam 10 số).' });
+      if (b.email && !email) return res.status(400).json({ error: 'Email chưa đúng định dạng.' });
       if (b.username && !user) return res.status(400).json({ error: 'Tên đăng nhập 3–40 ký tự, bắt đầu bằng chữ, chỉ gồm chữ không dấu, số, dấu chấm, gạch.' });
-      if (!phone && !user) return res.status(400).json({ error: 'Nhập số điện thoại hoặc tên đăng nhập.' });
-      if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Mật khẩu cần ít nhất 6 ký tự.' });
+      if (!phone && !user && !email) return res.status(400).json({ error: 'Nhập tên đăng nhập, số điện thoại hoặc email.' });
+      if (!strongPw(pw)) return res.status(400).json({ error: PW_RULE });
       const { rows } = await pool.query(
-        'INSERT INTO customers (phone, username, name, company, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-        [phone, user, name, company || null, await bcrypt.hash(pw, 10)]);
+        'INSERT INTO customers (phone, email, username, name, company, password_hash) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+        [phone, email, user, name, company || null, await bcrypt.hash(pw, 10)]);
       res.status(201).json({ ok: true, id: rows[0].id });
     } catch (e) {
-      if (e.code === '23505') return res.status(409).json({ error: 'Số điện thoại hoặc tên đăng nhập này đã có tài khoản.' });
+      if (e.code === '23505') return res.status(409).json({ error: 'Số điện thoại, email hoặc tên đăng nhập này đã có tài khoản.' });
       next(e);
     }
   });
@@ -515,6 +528,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   admin.post('/customers/:id/reset-password', requireAdmin, async (req, res, next) => {
     try {
       let pw = ''; for (const x of crypto.randomBytes(8)) pw += ALPH[x % 32].toLowerCase();
+      pw = pw.slice(0, 4) + '-' + pw.slice(4); // có ký tự đặc biệt theo quy định mật khẩu
       const r = await pool.query('UPDATE customers SET password_hash = $2, token_version = token_version + 1 WHERE id = $1 RETURNING phone',
         [Number(req.params.id), await bcrypt.hash(pw, 10)]);
       if (!r.rows[0]) return res.status(404).json({ error: 'Không tìm thấy khách.' });

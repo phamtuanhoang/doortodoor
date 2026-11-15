@@ -22,6 +22,7 @@ const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const DEFAULT_CONTENT = require('./default-content.json');
 const mountCustomers = require('./customers');
+const makeCaptcha = require('./captcha');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
@@ -208,6 +209,14 @@ function publicCors(req, res, next) {
 
 app.get('/healthz', (req, res) => res.json({ ok: true }));
 
+/* ---------- Captcha cho đăng nhập / đăng ký ---------- */
+const captcha = makeCaptcha(SESSION_SECRET);
+const captchaLimit = rateLimit({ windowMs: 60 * 1000, max: 40 });
+app.get('/api/captcha', publicCors, captchaLimit, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(captcha.create());
+});
+
 app.get('/api/content', publicCors, async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT key, data, updated_at FROM content');
@@ -289,7 +298,7 @@ const admin = express.Router();
 admin.use(sameOrigin);
 
 const loginLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
-admin.post('/login', loginLimit, adminJson, async (req, res, next) => {
+admin.post('/login', loginLimit, adminJson, captcha.require, async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
     if (!isStr(username, 80) || !isStr(password, 200)) return res.status(400).json({ error: 'Nhập tài khoản và mật khẩu.' });
@@ -426,7 +435,7 @@ admin.post('/password', requireAdmin, adminJson, async (req, res, next) => {
 app.use('/api/admin', admin);
 
 /* ---------- Khách hàng, vận đơn, tra cứu (customers.js) ---------- */
-const customers = mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET });
+const customers = mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET, captcha });
 
 /* ---------- Trang quản trị ---------- */
 app.use('/admin', express.static(path.join(__dirname, 'admin'), {

@@ -43,15 +43,23 @@
   function busy(btn, p) { btn.disabled = true; return p.finally(function () { btn.disabled = false; }); }
 
   /* ---------- Đăng nhập ---------- */
-  function showLogin() { $('app-view').hidden = true; $('login-view').hidden = false; $('lg-user').focus(); }
+  var capToken = null;
+  function loadCaptcha() {
+    $('lg-cap').value = '';
+    return fetch('/api/captcha', { cache: 'no-store' }).then(function (r) { return r.json(); })
+      .then(function (j) { capToken = j.token; $('lg-cap-img').src = j.image; }).catch(function () { $('lg-err').textContent = 'Không tải được mã xác nhận. Tải lại trang.'; });
+  }
+  $('lg-cap-new').addEventListener('click', function () { loadCaptcha(); $('lg-cap').focus(); });
+  function showLogin() { $('app-view').hidden = true; $('login-view').hidden = false; loadCaptcha(); $('lg-user').focus(); }
   function showApp(name) { $('login-view').hidden = true; $('app-view').hidden = false; $('who').textContent = name; route(); refreshBadges(); }
   $('login-form').addEventListener('submit', function (e) {
     e.preventDefault();
     $('lg-err').textContent = '';
     var btn = e.target.querySelector('button');
-    busy(btn, api('POST', '/api/admin/login', { username: $('lg-user').value, password: $('lg-pass').value })
-      .then(function (j) { $('lg-pass').value = ''; showApp(j.username); })
-      .catch(function (err) { $('lg-err').textContent = err.message; }));
+    if (!$('lg-cap').value.trim()) { $('lg-err').textContent = 'Nhập mã xác nhận trong ảnh.'; $('lg-cap').focus(); return; }
+    busy(btn, api('POST', '/api/admin/login', { username: $('lg-user').value, password: $('lg-pass').value, captcha_token: capToken, captcha: $('lg-cap').value })
+      .then(function (j) { $('lg-pass').value = ''; $('lg-cap').value = ''; showApp(j.username); })
+      .catch(function (err) { $('lg-err').textContent = err.message; loadCaptcha(); }));
   });
   $('logout').addEventListener('click', function () { api('POST', '/api/admin/logout', {}).finally(showLogin); });
 
@@ -549,11 +557,11 @@
         box.appendChild(h('article', { class: 'cust' }, [
           h('div', null, [
             h('h3', null, [c.name, c.disabled ? h('span', { class: 'locked', text: ' · Đã khóa' }) : null]),
-            h('p', { class: 'muted', text: [c.username ? 'Tên đăng nhập ' + c.username : null, c.phone, c.company].filter(Boolean).join(' · ') + ' · ' + c.orders + ' đơn (' + c.open_orders + ' đang xử lý)' }),
+            h('p', { class: 'muted', text: [c.username ? 'Tên đăng nhập ' + c.username : null, c.phone, c.email, c.company].filter(Boolean).join(' · ') + ' · ' + c.orders + ' đơn (' + c.open_orders + ' đang xử lý)' }),
             h('p', { class: 'muted', text: 'Đăng ký ' + fmtTime(c.created_at) + (c.last_login_at ? ' · đăng nhập gần nhất ' + fmtTime(c.last_login_at) : '') }),
             out
           ]),
-          h('div', { class: 'actions' }, [h('a', { class: 'btn ghost small', href: '#van-don', text: 'Xem đơn', onclick: function () { $('order-q').value = c.phone || c.username; oFilter = ''; fsel.value = ''; } }), h('button', { class: 'btn primary small', type: 'button', text: 'Tạo vận đơn', onclick: function () { newOrderForm(c, out); } }), reset, lock])
+          h('div', { class: 'actions' }, [h('a', { class: 'btn ghost small', href: '#van-don', text: 'Xem đơn', onclick: function () { $('order-q').value = c.phone || c.email || c.username; oFilter = ''; fsel.value = ''; } }), h('button', { class: 'btn primary small', type: 'button', text: 'Tạo vận đơn', onclick: function () { newOrderForm(c, out); } }), reset, lock])
         ]));
       });
     }).catch(function (e) { box.textContent = e.message; });
@@ -562,7 +570,7 @@
   $('cust-new').addEventListener('submit', function (e) {
     e.preventDefault();
     var f = e.target;
-    busy(f.querySelector('button'), api('POST', '/api/admin/customers', { username: $('cn-user').value.trim() || undefined, phone: $('cn-phone').value.trim() || undefined, name: $('cn-name').value.trim(), company: $('cn-company').value.trim(), password: $('cn-pass').value })
+    busy(f.querySelector('button'), api('POST', '/api/admin/customers', { username: $('cn-user').value.trim() || undefined, phone: $('cn-phone').value.trim() || undefined, email: $('cn-email').value.trim() || undefined, name: $('cn-name').value.trim(), company: $('cn-company').value.trim(), password: $('cn-pass').value })
       .then(function () { toast('Đã tạo tài khoản khách.'); f.reset(); loaders['khach-tk'](); }).catch(function (er) { toast(er.message, true); }));
   });
   function newOrderForm(c, out) {

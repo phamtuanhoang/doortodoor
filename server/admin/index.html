@@ -17,6 +17,12 @@
     <input id="lg-user" autocomplete="username" required>
     <label for="lg-pass">Mật khẩu</label>
     <input id="lg-pass" type="password" autocomplete="current-password" required>
+    <label for="lg-cap">Mã xác nhận</label>
+    <div class="cap-row">
+      <img id="lg-cap-img" alt="Ảnh mã xác nhận" width="160" height="54">
+      <button class="btn ghost small" type="button" id="lg-cap-new">Đổi mã khác</button>
+    </div>
+    <input id="lg-cap" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" placeholder="Nhập 5 ký tự trong ảnh" required>
     <p class="err" id="lg-err" role="alert"></p>
     <button class="btn primary" type="submit">Đăng nhập</button>
   </form>
@@ -81,11 +87,14 @@
             <div class="fld"><label for="cn-user">Tên đăng nhập</label><input id="cn-user" autocomplete="off" autocapitalize="none" placeholder="vd: lam-pex"></div>
             <div class="fld"><label for="cn-phone">Số điện thoại</label><input id="cn-phone" type="tel" autocomplete="off" placeholder="0912 345 678"></div>
           </div>
-          <p class="muted">Nhập tên đăng nhập, số điện thoại hoặc cả hai. Khách đăng nhập được bằng cái nào cũng được.</p>
+          <div class="row">
+            <div class="fld"><label for="cn-email">Email</label><input id="cn-email" type="email" autocomplete="off" placeholder="khach@vidu.com"></div>
+          </div>
+          <p class="muted">Nhập ít nhất một trong ba: tên đăng nhập, số điện thoại, email. Khách đăng nhập được bằng cái nào cũng được.</p>
           <div class="row">
             <div class="fld"><label for="cn-name">Họ tên</label><input id="cn-name" autocomplete="off"></div>
             <div class="fld"><label for="cn-company">Công ty / cửa hàng</label><input id="cn-company" autocomplete="off"></div>
-            <div class="fld"><label for="cn-pass">Mật khẩu (ít nhất 6 ký tự)</label><input id="cn-pass" autocomplete="new-password"></div>
+            <div class="fld"><label for="cn-pass">Mật khẩu (ít nhất 8 ký tự, có ký tự đặc biệt)</label><input id="cn-pass" autocomplete="new-password"></div>
           </div>
           <button class="btn primary" type="submit">Tạo tài khoản</button>
         </form>
