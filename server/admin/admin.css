@@ -157,6 +157,8 @@ details summary{cursor:pointer;font-weight:600}
 .cust h3{margin:0;font-size:1rem}
 .cust .muted{font-size:.88rem}
 .locked{color:var(--bad);font-weight:600}
+.new-cust{margin-bottom:14px}
+.cust>div:first-child{flex:1 1 420px;min-width:0}
 
 @media (max-width:760px){
   .od{grid-template-columns:minmax(0,1fr)}

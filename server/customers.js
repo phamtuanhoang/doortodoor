@@ -76,6 +76,9 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       CREATE INDEX IF NOT EXISTS orders_status_idx ON orders (status, updated_at DESC);
       CREATE INDEX IF NOT EXISTS events_order_idx ON order_events (order_id, created_at);
     `);
+    // Tài khoản do nhân viên tạo có thể dùng tên đăng nhập thay cho số điện thoại
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS username TEXT UNIQUE');
+    await pool.query('ALTER TABLE customers ALTER COLUMN phone DROP NOT NULL');
     for (const [from, to] of Object.entries(LEGACY)) {
       await pool.query('UPDATE orders SET status = $2 WHERE status = $1', [from, to]);
       await pool.query('UPDATE order_events SET status = $2 WHERE status = $1', [from, to]);
@@ -100,7 +103,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       const h = req.headers.authorization || '';
       const p = read(h.startsWith('Bearer ') ? h.slice(7) : '');
       if (!p) return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
-      const { rows } = await pool.query('SELECT id, phone, name, company, token_version, disabled, created_at FROM customers WHERE id = $1', [p.cid]);
+      const { rows } = await pool.query('SELECT id, phone, username, name, company, token_version, disabled, created_at FROM customers WHERE id = $1', [p.cid]);
       const c = rows[0];
       if (!c || c.token_version !== p.v) return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
       if (c.disabled) return res.status(403).json({ error: 'Tài khoản đang bị khóa. Vui lòng liên hệ doortodoor.' });
@@ -116,6 +119,8 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
     else if (/^84\d{9}$/.test(s)) s = '0' + s.slice(2);
     return /^0[35789]\d{8}$/.test(s) ? s : null;
   }
+  const normUser = v => { const s = String(v || '').trim().toLowerCase(); return /^[a-z][a-z0-9._-]{2,39}$/.test(s) ? s : null; };
+  const loginId = c => c.phone || c.username;
   const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   function optNum(v, max) {
     if (v === undefined || v === null || v === '') return { ok: true, val: null };
@@ -123,8 +128,8 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
     return Number.isFinite(n) && n >= 0 && n <= max ? { ok: true, val: n } : { ok: false };
   }
   const ALPH = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  function newWaybill() {
-    const d = new Date(Date.now() + 7 * 3600e3); // giờ Việt Nam
+  function newWaybill(at) {
+    const d = new Date((at ? at.getTime() : Date.now()) + 7 * 3600e3); // giờ Việt Nam
     const ymd = String(d.getUTCFullYear()).slice(2) + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0');
     let r = ''; const bytes = crypto.randomBytes(5);
     for (const x of bytes) r += ALPH[x % 32];
@@ -207,22 +212,24 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   cr.post('/login', loginLimit, json, async (req, res, next) => {
     try {
       const b = req.body || {};
-      const phone = normPhone(b.phone), pw = typeof b.password === 'string' ? b.password : '';
-      if (!phone || !pw) return res.status(400).json({ error: 'Nhập số điện thoại và mật khẩu.' });
-      if (phoneFails.blocked(phone)) return res.status(429).json({ error: 'Sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.' });
-      const { rows } = await pool.query('SELECT * FROM customers WHERE phone = $1', [phone]);
+      const raw = b.login !== undefined ? b.login : b.phone;
+      const phone = normPhone(raw), user = phone ? null : normUser(raw), pw = typeof b.password === 'string' ? b.password : '';
+      const key = phone || user;
+      if (!key || !pw) return res.status(400).json({ error: 'Nhập số điện thoại (hoặc tên đăng nhập) và mật khẩu.' });
+      if (phoneFails.blocked(key)) return res.status(429).json({ error: 'Sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.' });
+      const { rows } = await pool.query(phone ? 'SELECT * FROM customers WHERE phone = $1' : 'SELECT * FROM customers WHERE username = $1', [key]);
       const c = rows[0];
-      if (!c || !(await bcrypt.compare(pw, c.password_hash))) { phoneFails.fail(phone); return res.status(401).json({ error: 'Sai số điện thoại hoặc mật khẩu.' }); }
+      if (!c || !(await bcrypt.compare(pw, c.password_hash))) { phoneFails.fail(key); return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu.' }); }
       if (c.disabled) return res.status(403).json({ error: 'Tài khoản đang bị khóa. Vui lòng liên hệ doortodoor.' });
-      phoneFails.clear(phone);
+      phoneFails.clear(key);
       await pool.query('UPDATE customers SET last_login_at = now() WHERE id = $1', [c.id]);
-      res.json({ token: issue(c), customer: { phone: c.phone, name: c.name, company: c.company } });
+      res.json({ token: issue(c), customer: { phone: c.phone, username: c.username, name: c.name, company: c.company } });
     } catch (e) { next(e); }
   });
 
   cr.get('/me', requireCustomer, (req, res) => {
     const c = req.customer;
-    res.json({ phone: c.phone, name: c.name, company: c.company, created_at: c.created_at });
+    res.json({ phone: c.phone, username: c.username, name: c.name, company: c.company, created_at: c.created_at });
   });
   cr.patch('/me', requireCustomer, json, async (req, res, next) => {
     try {
@@ -278,7 +285,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
         row = r.rows[0];
       }
       if (!row) throw new Error('Không tạo được mã vận đơn');
-      await client.query('INSERT INTO order_events (order_id, status, created_by) VALUES ($1, $2, $3)', [row.id, 'created', 'khách ' + req.customer.phone]);
+      await client.query('INSERT INTO order_events (order_id, status, created_by) VALUES ($1, $2, $3)', [row.id, 'created', 'khách ' + loginId(req.customer)]);
       await client.query('COMMIT');
       res.status(201).json({ order: publicOrder(row) });
     } catch (e) { await client.query('ROLLBACK').catch(() => {}); next(e); }
@@ -307,7 +314,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       const o = await ownOrder(req, res); if (!o) return;
       if (o.status !== 'created') return res.status(409).json({ error: 'Hàng đã được doortodoor tiếp nhận nên không hủy trên web được. Vui lòng liên hệ nhân viên phụ trách.' });
       await pool.query("UPDATE orders SET status='cancelled', updated_at=now() WHERE id=$1", [o.id]);
-      await pool.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1, $2, $3, $4)', [o.id, 'cancelled', 'Khách hủy đơn', 'khách ' + req.customer.phone]);
+      await pool.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1, $2, $3, $4)', [o.id, 'cancelled', 'Khách hủy đơn', 'khách ' + loginId(req.customer)]);
       res.json({ ok: true });
     } catch (e) { next(e); }
   });
@@ -317,7 +324,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       if (o.status === 'delivered') return res.json({ ok: true });
       if (!CONFIRMABLE.includes(o.status)) return res.status(409).json({ error: 'Hàng chưa về kho Hà Nội nên chưa xác nhận được.' });
       await pool.query("UPDATE orders SET status='delivered', received_at=now(), updated_at=now() WHERE id=$1", [o.id]);
-      await pool.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1, $2, $3, $4)', [o.id, 'delivered', 'Khách xác nhận đã nhận hàng', 'khách ' + req.customer.phone]);
+      await pool.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1, $2, $3, $4)', [o.id, 'delivered', 'Khách xác nhận đã nhận hàng', 'khách ' + loginId(req.customer)]);
       res.json({ ok: true });
     } catch (e) { next(e); }
   });
@@ -350,10 +357,10 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       if (q) {
         params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%');
         const p = `$${params.length}`;
-        where.push(`(o.waybill ILIKE ${p} OR o.order_code ILIKE ${p} OR o.item_name ILIKE ${p} OR o.brand ILIKE ${p} OR c.phone ILIKE ${p} OR c.name ILIKE ${p})`);
+        where.push(`(o.waybill ILIKE ${p} OR o.order_code ILIKE ${p} OR o.item_name ILIKE ${p} OR o.brand ILIKE ${p} OR c.phone ILIKE ${p} OR c.username ILIKE ${p} OR c.name ILIKE ${p})`);
       }
       const { rows } = await pool.query(
-        `SELECT o.*, c.phone, c.name AS customer_name, c.company AS customer_company
+        `SELECT o.*, COALESCE(c.phone, c.username) AS phone, c.name AS customer_name, c.company AS customer_company
          FROM orders o JOIN customers c ON c.id = o.customer_id
          ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY o.updated_at DESC LIMIT 300`, params);
       const counts = await pool.query('SELECT status, count(*)::int AS n FROM orders GROUP BY status');
@@ -362,7 +369,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
   });
   async function adminOrder(id) {
     const { rows } = await pool.query(
-      `SELECT o.*, c.phone, c.name AS customer_name, c.company AS customer_company, c.id AS cid
+      `SELECT o.*, COALESCE(c.phone, c.username) AS phone, c.phone AS real_phone, c.name AS customer_name, c.company AS customer_company, c.id AS cid
        FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id = $1`, [Number(id)]);
     return rows[0];
   }
@@ -439,14 +446,71 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       const q = str(req.query.q, 80);
       const params = [];
       let where = '';
-      if (q) { params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); where = 'WHERE c.phone ILIKE $1 OR c.name ILIKE $1 OR c.company ILIKE $1'; }
+      if (q) { params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); where = 'WHERE c.phone ILIKE $1 OR c.username ILIKE $1 OR c.name ILIKE $1 OR c.company ILIKE $1'; }
       const { rows } = await pool.query(
-        `SELECT c.id, c.phone, c.name, c.company, c.disabled, c.created_at, c.last_login_at,
+        `SELECT c.id, c.phone, c.username, c.name, c.company, c.disabled, c.created_at, c.last_login_at,
            count(o.id)::int AS orders, count(o.id) FILTER (WHERE o.status NOT IN ('delivered','cancelled'))::int AS open_orders
          FROM customers c LEFT JOIN orders o ON o.customer_id = c.id ${where}
          GROUP BY c.id ORDER BY c.created_at DESC LIMIT 300`, params);
       res.json({ items: rows });
     } catch (e) { next(e); }
+  });
+  admin.post('/customers', requireAdmin, aj, async (req, res, next) => { // nhân viên tạo tài khoản cho khách
+    try {
+      const b = req.body || {};
+      const phone = b.phone ? normPhone(b.phone) : null, user = b.username ? normUser(b.username) : null;
+      const name = str(b.name, 120) || user || phone, company = str(b.company, 160), pw = typeof b.password === 'string' ? b.password : '';
+      if (b.phone && !phone) return res.status(400).json({ error: 'Số điện thoại chưa đúng (số di động Việt Nam 10 số).' });
+      if (b.username && !user) return res.status(400).json({ error: 'Tên đăng nhập 3–40 ký tự, bắt đầu bằng chữ, chỉ gồm chữ không dấu, số, dấu chấm, gạch.' });
+      if (!phone && !user) return res.status(400).json({ error: 'Nhập số điện thoại hoặc tên đăng nhập.' });
+      if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Mật khẩu cần ít nhất 6 ký tự.' });
+      const { rows } = await pool.query(
+        'INSERT INTO customers (phone, username, name, company, password_hash) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+        [phone, user, name, company || null, await bcrypt.hash(pw, 10)]);
+      res.status(201).json({ ok: true, id: rows[0].id });
+    } catch (e) {
+      if (e.code === '23505') return res.status(409).json({ error: 'Số điện thoại hoặc tên đăng nhập này đã có tài khoản.' });
+      next(e);
+    }
+  });
+  admin.post('/orders', requireAdmin, aj, async (req, res, next) => { // nhân viên tạo vận đơn thay khách
+    const client = await pool.connect();
+    try {
+      const b = req.body || {};
+      const cid = Number(b.customer_id);
+      const v = orderInput(b);
+      if (v.error) return res.status(400).json({ error: v.error });
+      const st = b.status || 'created';
+      if (!STATUS_KEYS.includes(st)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
+      let at = null;
+      if (b.date) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date)) return res.status(400).json({ error: 'Ngày dạng YYYY-MM-DD.' });
+        at = new Date(b.date + 'T09:00:00+07:00');
+        if (isNaN(at) || at > new Date()) return res.status(400).json({ error: 'Ngày chưa đúng.' });
+      }
+      const c = await client.query('SELECT id FROM customers WHERE id = $1', [cid]);
+      if (!c.rows[0]) return res.status(404).json({ error: 'Không tìm thấy khách.' });
+      const o = v.order;
+      await client.query('BEGIN');
+      let row;
+      for (let i = 0; i < 5 && !row; i++) {
+        const r = await client.query(
+          `INSERT INTO orders (waybill, customer_id, order_code, packages, volume, weight, item_name, brand, note, status, created_at, received_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, COALESCE($11, now()), CASE WHEN $10 = 'delivered' THEN now() END) ON CONFLICT (waybill) DO NOTHING RETURNING *`,
+          [newWaybill(at), cid, o.order_code, o.packages, o.volume, o.weight, o.item_name, o.brand || null, o.note || null, st, at]);
+        row = r.rows[0];
+      }
+      if (!row) throw new Error('Không tạo được mã vận đơn');
+      await client.query('INSERT INTO order_events (order_id, status, note, created_by, created_at) VALUES ($1, $2, $3, $4, COALESCE($5, now()))',
+        [row.id, 'created', 'Nhân viên tạo đơn', req.admin.u, at]);
+      if (st !== 'created') {
+        await client.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1, $2, $3, $4)',
+          [row.id, st, str(b.status_note, 1000) || null, req.admin.u]);
+      }
+      await client.query('COMMIT');
+      res.status(201).json({ ok: true, id: row.id, waybill: row.waybill });
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); next(e); }
+    finally { client.release(); }
   });
   admin.post('/customers/:id/reset-password', requireAdmin, async (req, res, next) => {
     try {

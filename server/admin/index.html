@@ -74,6 +74,22 @@
           <button class="btn ghost" type="submit">Tìm</button>
         </form>
       </div>
+      <details class="card new-cust">
+        <summary>+ Tạo tài khoản cho khách</summary>
+        <form id="cust-new" class="stack" novalidate>
+          <div class="row">
+            <div class="fld"><label for="cn-user">Tên đăng nhập</label><input id="cn-user" autocomplete="off" autocapitalize="none" placeholder="vd: lam-pex"></div>
+            <div class="fld"><label for="cn-phone">Số điện thoại</label><input id="cn-phone" type="tel" autocomplete="off" placeholder="0912 345 678"></div>
+          </div>
+          <p class="muted">Nhập tên đăng nhập, số điện thoại hoặc cả hai. Khách đăng nhập được bằng cái nào cũng được.</p>
+          <div class="row">
+            <div class="fld"><label for="cn-name">Họ tên</label><input id="cn-name" autocomplete="off"></div>
+            <div class="fld"><label for="cn-company">Công ty / cửa hàng</label><input id="cn-company" autocomplete="off"></div>
+            <div class="fld"><label for="cn-pass">Mật khẩu (ít nhất 6 ký tự)</label><input id="cn-pass" autocomplete="new-password"></div>
+          </div>
+          <button class="btn primary" type="submit">Tạo tài khoản</button>
+        </form>
+      </details>
       <div id="customers" class="leads"></div>
     </section>
 

@@ -115,7 +115,7 @@
       h('a', { href: '#tai-khoan', role: 'tab', 'aria-selected': String(!isReg), text: 'Đăng nhập' }),
       h('a', { href: '#tai-khoan/dang-ky', role: 'tab', 'aria-selected': String(isReg), text: 'Tạo tài khoản' })
     ]);
-    var phone = h('input', { type: 'tel', autocomplete: 'tel', inputmode: 'tel', maxlength: '20', placeholder: '0912 345 678', required: true });
+    var phone = h('input', { type: isReg ? 'tel' : 'text', autocomplete: isReg ? 'tel' : 'username', autocapitalize: 'none', spellcheck: 'false', inputmode: isReg ? 'tel' : null, maxlength: '40', placeholder: '0912 345 678', required: true });
     var pw = h('input', { type: 'password', autocomplete: isReg ? 'new-password' : 'current-password', maxlength: '200', required: true });
     var name = h('input', { autocomplete: 'name', maxlength: '120' });
     var company = h('input', { autocomplete: 'organization', maxlength: '160' });
@@ -125,7 +125,7 @@
     var form = h('form', { class: 'acct-card', novalidate: true }, [
       tabs,
       isReg ? field('c-name', 'Họ tên', name, null, true) : null,
-      field('c-phone', 'Số điện thoại', phone, isReg ? 'Số này dùng để đăng nhập và để nhân viên liên hệ khi giao hàng.' : null, true),
+      field('c-phone', isReg ? 'Số điện thoại' : 'Số điện thoại hoặc tên đăng nhập', phone, isReg ? 'Số này dùng để đăng nhập và để nhân viên liên hệ khi giao hàng.' : null, true),
       field('c-pw', 'Mật khẩu', pw, isReg ? 'Ít nhất 6 ký tự.' : null, true),
       isReg ? field('c-company', 'Công ty / cửa hàng', company) : null,
       isReg ? h('div', { class: 'f consent' }, [consent, h('label', { for: 'c-consent', text: 'Tôi đồng ý để doortodoor lưu số điện thoại, họ tên và thông tin đơn hàng để vận chuyển và liên hệ giao hàng.' })]) : null,
@@ -166,7 +166,7 @@
   function listPage() {
     var box = h('div', { class: 'orders' }, h('p', { class: 'empty', text: 'Đang tải đơn hàng…' }));
     var who = h('div', { class: 'acct-who' }, [
-      h('span', { text: me ? me.name + ' · ' + me.phone : '' }),
+      h('span', { text: me ? me.name + ' · ' + (me.phone || me.username) : '' }),
       h('a', { href: '#tai-khoan/thong-tin', text: 'Thông tin tài khoản' }),
       h('button', { class: 'linkish', type: 'button', text: 'Đăng xuất', onclick: logout })
     ]);
@@ -185,7 +185,7 @@
     function match(o, f) { return f === 'all' || (f === 'delivered' ? o.status === 'delivered' : o.status !== 'delivered' && o.status !== 'cancelled'); }
     api('GET', '/api/customer/orders').then(function (r) { all = r.items; if (!all.some(function (o) { return match(o, filter); }) && all.length) filter = 'all'; draw(); })
       .catch(function (e) { if (e.status === 401) return render(); mount(box, h('p', { class: 'form-msg bad', text: e.message })); });
-    api('GET', '/api/customer/me').then(function (c) { me = c; who.firstChild.textContent = c.name + ' · ' + c.phone; }).catch(function () {});
+    api('GET', '/api/customer/me').then(function (c) { me = c; who.firstChild.textContent = c.name + ' · ' + (c.phone || c.username); }).catch(function () {});
     return [head('Đơn hàng của tôi', 'Vận đơn của bạn', null, who),
       h('section', { class: 'sec acct' }, h('div', { class: 'wrap' }, [
         h('div', { class: 'list-bar' }, [chips, h('a', { class: 'btn btn-main', href: '#tai-khoan/tao-don', text: '+ Tạo vận đơn mới' })]),
@@ -329,7 +329,7 @@
     var name = h('input', { autocomplete: 'name', maxlength: '120', value: (me && me.name) || '' });
     var company = h('input', { autocomplete: 'organization', maxlength: '160', value: (me && me.company) || '' });
     var m1 = msgEl(), b1 = h('button', { class: 'btn btn-main', type: 'submit', text: 'Lưu thông tin' });
-    var f1 = h('form', { class: 'acct-card', novalidate: true }, [h('h2', { text: 'Thông tin' }), h('p', { class: 'hint', text: 'Số điện thoại đăng nhập: ' + ((me && me.phone) || '') }),
+    var f1 = h('form', { class: 'acct-card', novalidate: true }, [h('h2', { text: 'Thông tin' }), h('p', { class: 'hint', text: 'Tài khoản đăng nhập: ' + ((me && (me.phone || me.username)) || '') }),
       field('p-name', 'Họ tên', name, null, true), field('p-company', 'Công ty / cửa hàng', company), h('div', { class: 'form-foot' }, [b1, m1])]);
     f1.addEventListener('submit', function (e) {
       e.preventDefault();

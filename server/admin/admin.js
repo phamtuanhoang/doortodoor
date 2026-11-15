@@ -511,7 +511,7 @@
       box.appendChild(h('div', { class: 'od' }, [
         h('div', { class: 'card' }, [
           h('h2', { text: 'Khách hàng' }),
-          h('p', null, [h('b', { text: o.customer_name }), ' · ', h('a', { href: 'tel:' + o.phone, text: o.phone }), o.customer_company ? ' · ' + o.customer_company : '']),
+          h('p', null, [h('b', { text: o.customer_name }), ' · ', o.real_phone ? h('a', { href: 'tel:' + o.real_phone, text: o.real_phone }) : 'tài khoản ' + o.phone, o.customer_company ? ' · ' + o.customer_company : '']),
           h('h2', { text: 'Thông tin đơn' }), info,
           h('h2', { text: 'Cân đo thực tế tại kho' }),
           h('div', { class: 'row' }, [h('div', { class: 'fld' }, [h('label', { for: wid, text: 'Số kg' }), mw]), h('div', { class: 'fld' }, [h('label', { for: vid, text: 'Số khối (m³)' }), mv])]),
@@ -549,16 +549,52 @@
         box.appendChild(h('article', { class: 'cust' }, [
           h('div', null, [
             h('h3', null, [c.name, c.disabled ? h('span', { class: 'locked', text: ' · Đã khóa' }) : null]),
-            h('p', { class: 'muted', text: c.phone + (c.company ? ' · ' + c.company : '') + ' · ' + c.orders + ' đơn (' + c.open_orders + ' đang xử lý)' }),
+            h('p', { class: 'muted', text: [c.username ? 'Tên đăng nhập ' + c.username : null, c.phone, c.company].filter(Boolean).join(' · ') + ' · ' + c.orders + ' đơn (' + c.open_orders + ' đang xử lý)' }),
             h('p', { class: 'muted', text: 'Đăng ký ' + fmtTime(c.created_at) + (c.last_login_at ? ' · đăng nhập gần nhất ' + fmtTime(c.last_login_at) : '') }),
             out
           ]),
-          h('div', { class: 'actions' }, [h('a', { class: 'btn ghost small', href: '#van-don', text: 'Xem đơn', onclick: function () { $('order-q').value = c.phone; oFilter = ''; fsel.value = ''; } }), reset, lock])
+          h('div', { class: 'actions' }, [h('a', { class: 'btn ghost small', href: '#van-don', text: 'Xem đơn', onclick: function () { $('order-q').value = c.phone || c.username; oFilter = ''; fsel.value = ''; } }), h('button', { class: 'btn primary small', type: 'button', text: 'Tạo vận đơn', onclick: function () { newOrderForm(c, out); } }), reset, lock])
         ]));
       });
     }).catch(function (e) { box.textContent = e.message; });
   };
   $('cust-search').addEventListener('submit', function (e) { e.preventDefault(); loaders['khach-tk'](); });
+  $('cust-new').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target;
+    busy(f.querySelector('button'), api('POST', '/api/admin/customers', { username: $('cn-user').value.trim() || undefined, phone: $('cn-phone').value.trim() || undefined, name: $('cn-name').value.trim(), company: $('cn-company').value.trim(), password: $('cn-pass').value })
+      .then(function () { toast('Đã tạo tài khoản khách.'); f.reset(); loaders['khach-tk'](); }).catch(function (er) { toast(er.message, true); }));
+  });
+  function newOrderForm(c, out) {
+    out.textContent = '';
+    var ids = {}; ['code', 'pk', 'item', 'brand', 'kg', 'm3', 'note', 'st', 'date'].forEach(function (k) { ids[k] = nextId(); });
+    var inp = {
+      order_code: h('input', { id: ids.code, maxlength: '120' }), packages: h('input', { id: ids.pk, type: 'number', min: '1', step: '1', value: '1' }),
+      item_name: h('input', { id: ids.item, maxlength: '300' }), brand: h('input', { id: ids.brand, maxlength: '160' }),
+      weight: h('input', { id: ids.kg, type: 'number', min: '0', step: 'any' }), volume: h('input', { id: ids.m3, type: 'number', min: '0', step: 'any' }),
+      note: h('input', { id: ids.note, maxlength: '1000' }), date: h('input', { id: ids.date, type: 'date' })
+    };
+    var st = h('select', { id: ids.st }, OST.filter(function (s) { return s[0] !== 'cancelled'; }).map(function (s) { return h('option', { value: s[0], text: s[1] }); }));
+    var save = h('button', { class: 'btn primary small', type: 'button', text: 'Tạo vận đơn' });
+    save.addEventListener('click', function () {
+      var body = { customer_id: c.id, status: st.value };
+      Object.keys(inp).forEach(function (k) { body[k] = inp[k].value.trim(); });
+      body.packages = parseInt(body.packages, 10);
+      if (!body.date) delete body.date;
+      busy(save, api('POST', '/api/admin/orders', body).then(function (r) { toast('Đã tạo vận đơn ' + r.waybill + '.'); loaders['khach-tk'](); }).catch(function (er) { toast(er.message, true); }));
+    });
+    function fld(id, label, el) { return h('div', { class: 'fld' }, [h('label', { for: id, text: label }), el]); }
+    out.appendChild(h('div', { class: 'add-ev' }, [
+      h('h3', { text: 'Tạo vận đơn cho ' + c.name }),
+      h('div', { class: 'row' }, [fld(ids.code, 'Mã đơn hàng *', inp.order_code), fld(ids.pk, 'Số kiện *', inp.packages)]),
+      h('div', { class: 'row' }, [fld(ids.item, 'Tên hàng *', inp.item_name), fld(ids.brand, 'Nhãn hiệu', inp.brand)]),
+      h('div', { class: 'row' }, [fld(ids.kg, 'Số kg', inp.weight), fld(ids.m3, 'Số khối (m³)', inp.volume)]),
+      fld(ids.note, 'Ghi chú', inp.note),
+      h('div', { class: 'row' }, [fld(ids.st, 'Trạng thái', st), fld(ids.date, 'Ngày tạo (để trống = hôm nay)', inp.date)]),
+      h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost small', type: 'button', text: 'Đóng', onclick: function () { out.textContent = ''; } })])
+    ]));
+    inp.order_code.focus();
+  }
 
 
   /* ---------- Khởi động ---------- */
