@@ -372,26 +372,18 @@
 
   /* ---------- Vận đơn ---------- */
   var OST = [
-    ['created', 'Đã tạo đơn'], ['received_cn', 'Đã nhập kho Bằng Tường'], ['cn_export', 'Báo quan đầu Trung Quốc'],
-    ['vn_customs', 'Thông quan Việt Nam'], ['in_transit', 'Đang vận chuyển về Hà Nội'], ['at_hn', 'Đã về kho Hà Nội'],
-    ['delivering', 'Đang giao hàng'], ['delivered', 'Đã nhận hàng'], ['cancelled', 'Đã hủy']
+    ['created', 'Đã tạo đơn'], ['received_cn', 'Nhập kho Bằng Tường'], ['at_hn', 'Về kho Hà Nội'],
+    ['delivered', 'Đã nhận'], ['cancelled', 'Đã hủy']
   ];
   var OLABEL = {}; OST.forEach(function (s) { OLABEL[s[0]] = s[1]; });
   var OIDX = {}; OST.forEach(function (s, i) { OIDX[s[0]] = i; });
-  var LOCATIONS = ['Kho Bằng Tường', 'Cửa khẩu Hữu Nghị', 'Cửa khẩu Tân Thanh', 'Cửa khẩu Chi Ma', 'Kho Hà Nội'];
-  var DEFAULT_LOC = { received_cn: 'Kho Bằng Tường', at_hn: 'Kho Hà Nội', delivering: 'Kho Hà Nội' };
   function ost(st) { return h('span', { class: 'ost ost-' + st, text: OLABEL[st] || st }); }
   function nfmt(n, unit) { return n == null ? null : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) + ' ' + unit; }
   function statusSelect(id, current) {
     var sel = h('select', { id: id }, OST.filter(function (s) { return s[0] !== 'created'; }).map(function (s) { return h('option', { value: s[0], text: s[1] }); }));
-    var next = OST[Math.min((OIDX[current] || 0) + 1, 7)][0];
+    var next = OST[Math.min((OIDX[current] || 0) + 1, 3)][0];
     sel.value = current === 'delivered' || current === 'cancelled' ? current : next;
     return sel;
-  }
-  function locInput(id) {
-    var dl = $('loc-list');
-    if (!dl) { dl = h('datalist', { id: 'loc-list' }, LOCATIONS.map(function (l) { return h('option', { value: l }); })); document.body.appendChild(dl); }
-    return h('input', { id: id, list: 'loc-list', maxlength: '160', placeholder: 'Ví dụ: Kho Bằng Tường' });
   }
 
   var oFilter = 'open', selected = {};
@@ -447,17 +439,15 @@
     bar.hidden = !ids.length; bar.textContent = '';
     if (!ids.length) return;
     var sel = h('select', { 'aria-label': 'Trạng thái mới' }, [h('option', { value: '', text: 'Chọn bước mới…' })].concat(OST.filter(function (s) { return s[0] !== 'created'; }).map(function (s) { return h('option', { value: s[0], text: s[1] }); })));
-    var loc = locInput('bulk-loc'); loc.setAttribute('aria-label', 'Địa điểm');
     var note = h('input', { maxlength: '1000', placeholder: 'Ghi chú cho khách (không bắt buộc)', 'aria-label': 'Ghi chú cho khách' });
-    sel.addEventListener('change', function () { if (!loc.value && DEFAULT_LOC[sel.value]) loc.value = DEFAULT_LOC[sel.value]; });
     var go = h('button', { class: 'btn primary', type: 'button', text: 'Cập nhật ' + ids.length + ' đơn' });
     go.addEventListener('click', function () {
       if (!sel.value) return toast('Chọn bước mới cho các đơn.', true);
-      busy(go, api('POST', '/api/admin/orders-bulk/events', { ids: ids.map(Number), status: sel.value, location: loc.value, note: note.value })
+      busy(go, api('POST', '/api/admin/orders-bulk/events', { ids: ids.map(Number), status: sel.value, note: note.value })
         .then(function (j) { toast('Đã cập nhật ' + j.updated + ' đơn.'); loadOrders(); refreshBadges(); }).catch(function (e) { toast(e.message, true); }));
     });
     bar.appendChild(h('b', { text: 'Đã chọn ' + ids.length + ' đơn' }));
-    [sel, loc, note, go, h('button', { class: 'btn ghost', type: 'button', text: 'Bỏ chọn', onclick: function () { $('ck-all').checked = false; $('ck-all').dispatchEvent(new Event('change')); } })].forEach(function (x) { bar.appendChild(x); });
+    [sel, note, go, h('button', { class: 'btn ghost', type: 'button', text: 'Bỏ chọn', onclick: function () { $('ck-all').checked = false; $('ck-all').dispatchEvent(new Event('change')); } })].forEach(function (x) { bar.appendChild(x); });
   }
 
   function orderDetail(id) {
@@ -469,20 +459,16 @@
       var back = h('a', { href: '#van-don', class: 'btn ghost small', text: '← Danh sách vận đơn' });
 
       // Cập nhật hành trình
-      var sid = nextId(), lid = nextId(), nid = nextId(), tid = nextId();
-      var sel = statusSelect(sid, o.status), loc = locInput(lid), note = h('textarea', { id: nid, maxlength: '1000', placeholder: 'Ví dụ: đã nhận đủ 8 kiện, kiện 3 móp góc. Khách đọc được ghi chú này.' });
-      var at = h('input', { id: tid, type: 'datetime-local' });
-      if (DEFAULT_LOC[sel.value]) loc.value = DEFAULT_LOC[sel.value];
-      sel.addEventListener('change', function () { if (DEFAULT_LOC[sel.value]) loc.value = DEFAULT_LOC[sel.value]; });
+      var sid = nextId(), nid = nextId();
+      var sel = statusSelect(sid, o.status), note = h('textarea', { id: nid, maxlength: '1000', placeholder: 'Ví dụ: đã nhận đủ 8 kiện, kiện 3 móp góc. Khách đọc được ghi chú này.' });
       var add = h('button', { class: 'btn primary', type: 'button', text: 'Thêm bước vào hành trình' });
       add.addEventListener('click', function () {
-        busy(add, api('POST', '/api/admin/orders/' + o.id + '/events', { status: sel.value, location: loc.value, note: note.value, at: at.value ? new Date(at.value).toISOString() : undefined })
+        busy(add, api('POST', '/api/admin/orders/' + o.id + '/events', { status: sel.value, note: note.value })
           .then(function () { toast('Đã cập nhật hành trình.'); orderDetail(o.id); refreshBadges(); }).catch(function (e) { toast(e.message, true); }));
       });
       var addBox = h('div', { class: 'add-ev' }, [h('h3', { text: 'Cập nhật bước mới' }),
-        h('label', { for: sid, text: 'Bước' }), sel, h('label', { for: lid, text: 'Địa điểm' }), loc,
-        h('label', { for: nid, text: 'Ghi chú hiển thị cho khách' }), note,
-        h('label', { for: tid, text: 'Thời gian (để trống = bây giờ)' }), at, h('div', { class: 'actions' }, add)]);
+        h('label', { for: sid, text: 'Bước' }), sel,
+        h('label', { for: nid, text: 'Ghi chú của nhân viên (khách đọc được)' }), note, h('div', { class: 'actions' }, add)]);
 
       var evs = h('ol', { class: 'evs' });
       j.events.slice().reverse().forEach(function (e) {
@@ -494,8 +480,8 @@
             api('DELETE', '/api/admin/orders/' + o.id + '/events/' + e.id).then(function () { toast('Đã xóa bước.'); orderDetail(o.id); }).catch(function (er) { toast(er.message, true); });
           } });
         }
-        evs.appendChild(h('li', { class: cust ? 'cust' : null }, [
-          h('div', null, [h('b', { text: OLABEL[e.status] || e.status }), h('div', { class: 'ev-meta', text: [fmtTime(e.created_at), e.location, (cust ? 'Khách' : e.created_by)].filter(Boolean).join(' · ') }), e.note ? h('p', { text: e.note }) : null]),
+        evs.appendChild(h('li', { class: cust ? 'by-cust' : null }, [
+          h('div', null, [h('b', { text: OLABEL[e.status] || e.status }), h('div', { class: 'ev-meta', text: [fmtTime(e.created_at), (cust ? 'Khách' : e.created_by)].filter(Boolean).join(' · ') }), e.note ? h('p', { text: e.note }) : null]),
           del
         ]));
       });

@@ -9,13 +9,9 @@
 
   var STEPS = [
     ['created', 'Đã tạo đơn', 'Bạn đã tạo vận đơn trên website'],
-    ['received_cn', 'Đã nhập kho Bằng Tường', 'Kho doortodoor tại Bằng Tường đã nhận hàng'],
-    ['cn_export', 'Báo quan đầu Trung Quốc', 'Làm thủ tục xuất khẩu phía Trung Quốc'],
-    ['vn_customs', 'Thông quan Việt Nam', 'Làm thủ tục nhập khẩu tại cửa khẩu'],
-    ['in_transit', 'Đang vận chuyển về Hà Nội', 'Xe đang chạy từ cửa khẩu về kho'],
-    ['at_hn', 'Đã về kho Hà Nội', 'Hàng đã về kho, chờ giao'],
-    ['delivering', 'Đang giao hàng', 'Hàng đang trên đường tới bạn'],
-    ['delivered', 'Đã nhận hàng', 'Bạn đã xác nhận nhận đủ hàng']
+    ['received_cn', 'Nhập kho Bằng Tường', 'Kho doortodoor tại Bằng Tường nhận hàng'],
+    ['at_hn', 'Về kho Hà Nội', 'Hàng qua cửa khẩu, về kho Hà Nội'],
+    ['delivered', 'Đã nhận', 'Bạn xác nhận đã nhận đủ hàng']
   ];
   var LABEL = { cancelled: 'Đã hủy' };
   STEPS.forEach(function (s) { LABEL[s[0]] = s[1]; });
@@ -104,7 +100,6 @@
           evs.map(function (e) {
             return h('div', { class: 'tl-ev' }, [
               h('time', { datetime: e.created_at, text: fmtTime(e.created_at) }),
-              e.location ? h('span', { class: 'tl-loc', text: e.location }) : null,
               withNotes && e.note ? h('p', { text: e.note }) : null
             ]);
           })
@@ -157,7 +152,7 @@
         h('h2', { text: 'Tài khoản giúp bạn' }),
         h('ul', { class: 'bul' }, [
           h('li', { text: 'Tạo mã vận đơn cho từng lô hàng gửi về kho Bằng Tường.' }),
-          h('li', { text: 'Xem hàng đã qua bước nào: nhập kho, báo quan, thông quan, về kho Hà Nội, giao hàng.' }),
+          h('li', { text: 'Xem hàng đã tới bước nào: nhập kho Bằng Tường, về kho Hà Nội, đã nhận.' }),
           h('li', { text: 'Xác nhận đã nhận hàng ngay trên điện thoại.' })
         ])
       ])]))];
@@ -274,7 +269,7 @@
     var fresh = justCreated === o.waybill; justCreated = null;
     var msg = msgEl();
     var actions = h('div', { class: 'od-actions' });
-    if (o.status === 'at_hn' || o.status === 'delivering') {
+    if (o.status === 'at_hn') {
       var ask = h('div', { class: 'confirm-ask', hidden: true }, [
         h('p', { text: 'Bạn đã nhận đủ ' + o.packages + ' kiện, hàng nguyên vẹn?' }),
         h('div', { class: 'cta' }, [
@@ -286,7 +281,7 @@
         h('p', { class: 'hint', text: 'Thiếu kiện hoặc hàng hư hỏng? Đừng xác nhận, hãy gọi hotline doortodoor ngay để được xử lý.' })
       ]);
       var main = h('button', { class: 'btn btn-main btn-big', type: 'button', text: 'Xác nhận đã nhận hàng', onclick: function () { main.hidden = true; ask.hidden = false; ask.querySelector('button').focus(); } });
-      actions.appendChild(h('div', { class: 'confirm-box' }, [h('b', { text: o.status === 'delivering' ? 'Hàng đang được giao tới bạn' : 'Hàng đã về kho Hà Nội' }), main, ask]));
+      actions.appendChild(h('div', { class: 'confirm-box' }, [h('b', { text: 'Hàng đã về kho Hà Nội' }), h('p', { text: 'Khi nhận được hàng, bạn bấm xác nhận để hoàn tất đơn.' }), main, ask]));
     }
     if (o.status === 'created') {
       var cancelAsk = h('span', { class: 'cancel-ask', hidden: true }, [

@@ -16,18 +16,16 @@ const bcrypt = require('bcryptjs');
 
 const STATUSES = [
   ['created', 'Đã tạo đơn'],
-  ['received_cn', 'Đã nhập kho Bằng Tường'],
-  ['cn_export', 'Báo quan đầu Trung Quốc'],
-  ['vn_customs', 'Thông quan Việt Nam'],
-  ['in_transit', 'Đang vận chuyển về Hà Nội'],
-  ['at_hn', 'Đã về kho Hà Nội'],
-  ['delivering', 'Đang giao hàng'],
+  ['received_cn', 'Nhập kho Bằng Tường'],
+  ['at_hn', 'Về kho Hà Nội'],
   ['delivered', 'Đã nhận hàng'],
   ['cancelled', 'Đã hủy']
 ];
 const STATUS_KEYS = STATUSES.map(s => s[0]);
 const STAFF_STATUSES = STATUS_KEYS.filter(s => s !== 'created');
-const CONFIRMABLE = ['at_hn', 'delivering'];
+const CONFIRMABLE = ['at_hn'];
+// Các bước cũ (bản 8 bước) được gộp vào 4 bước khi máy chủ khởi động
+const LEGACY = { cn_export: 'received_cn', vn_customs: 'received_cn', in_transit: 'received_cn', delivering: 'at_hn' };
 const TOKEN_DAYS = 30;
 
 module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateLimit, ALLOWED_ORIGINS, SESSION_SECRET }) {
@@ -78,6 +76,10 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       CREATE INDEX IF NOT EXISTS orders_status_idx ON orders (status, updated_at DESC);
       CREATE INDEX IF NOT EXISTS events_order_idx ON order_events (order_id, created_at);
     `);
+    for (const [from, to] of Object.entries(LEGACY)) {
+      await pool.query('UPDATE orders SET status = $2 WHERE status = $1', [from, to]);
+      await pool.query('UPDATE order_events SET status = $2 WHERE status = $1', [from, to]);
+    }
   }
 
   /* ---------- Mã đăng nhập của khách ---------- */
@@ -150,7 +152,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       status: o.status, created_at: o.created_at, updated_at: o.updated_at, received_at: o.received_at
     };
   }
-  const publicEvent = e => ({ status: e.status, note: e.note, location: e.location, created_at: e.created_at, by_customer: e.created_by.startsWith('khách') });
+  const publicEvent = e => ({ status: e.status, note: e.note, created_at: e.created_at, by_customer: e.created_by.startsWith('khách') });
   function failLimiter(max, windowMs) { // đếm số lần sai mật khẩu theo số điện thoại
     const m = new Map();
     setInterval(() => { const now = Date.now(); for (const [k, v] of m) if (v.reset < now) m.delete(k); }, windowMs).unref();
@@ -313,7 +315,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
     try {
       const o = await ownOrder(req, res); if (!o) return;
       if (o.status === 'delivered') return res.json({ ok: true });
-      if (!CONFIRMABLE.includes(o.status)) return res.status(409).json({ error: 'Đơn chưa ở bước giao hàng nên chưa xác nhận được.' });
+      if (!CONFIRMABLE.includes(o.status)) return res.status(409).json({ error: 'Hàng chưa về kho Hà Nội nên chưa xác nhận được.' });
       await pool.query("UPDATE orders SET status='delivered', received_at=now(), updated_at=now() WHERE id=$1", [o.id]);
       await pool.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1, $2, $3, $4)', [o.id, 'delivered', 'Khách xác nhận đã nhận hàng', 'khách ' + req.customer.phone]);
       res.json({ ok: true });
@@ -332,7 +334,7 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy vận đơn này. Kiểm tra lại mã.' });
       const ev = await events(rows[0].id);
       res.json({ waybill: rows[0].waybill, packages: rows[0].packages, status: rows[0].status, created_at: rows[0].created_at, updated_at: rows[0].updated_at,
-        events: ev.map(e => ({ status: e.status, location: e.location, created_at: e.created_at })) });
+        events: ev.map(e => ({ status: e.status, created_at: e.created_at })) });
     } catch (e) { next(e); }
   });
 
@@ -377,11 +379,9 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       if (!o) return res.status(404).json({ error: 'Không tìm thấy đơn.' });
       const b = req.body || {};
       if (!STAFF_STATUSES.includes(b.status)) return res.status(400).json({ error: 'Chọn trạng thái.' });
-      const note = str(b.note, 1000), location = str(b.location, 160);
-      let at = null;
-      if (b.at) { const d = new Date(b.at); if (isNaN(d) || d > new Date(Date.now() + 5 * 60e3)) return res.status(400).json({ error: 'Thời gian chưa đúng.' }); at = d; }
-      await pool.query('INSERT INTO order_events (order_id, status, note, location, created_by, created_at) VALUES ($1,$2,$3,$4,$5, COALESCE($6, now()))',
-        [o.id, b.status, note || null, location || null, req.admin.u, at]);
+      const note = str(b.note, 1000);
+      await pool.query('INSERT INTO order_events (order_id, status, note, created_by) VALUES ($1,$2,$3,$4)',
+        [o.id, b.status, note || null, req.admin.u]);
       await syncStatus(o.id);
       res.status(201).json({ ok: true });
     } catch (e) { next(e); }
@@ -393,12 +393,12 @@ module.exports = function mountCustomers({ app, admin, pool, requireAdmin, rateL
       const ids = Array.isArray(b.ids) ? [...new Set(b.ids.map(Number).filter(Number.isInteger))] : [];
       if (!ids.length || ids.length > 300) return res.status(400).json({ error: 'Chọn từ 1 đến 300 đơn.' });
       if (!STAFF_STATUSES.includes(b.status)) return res.status(400).json({ error: 'Chọn trạng thái.' });
-      const note = str(b.note, 1000) || null, location = str(b.location, 160) || null;
+      const note = str(b.note, 1000) || null;
       await client.query('BEGIN');
       const r = await client.query(
-        `INSERT INTO order_events (order_id, status, note, location, created_by)
-         SELECT id, $2, $3, $4, $5 FROM orders WHERE id = ANY($1::int[]) RETURNING order_id`,
-        [ids, b.status, note, location, req.admin.u]);
+        `INSERT INTO order_events (order_id, status, note, created_by)
+         SELECT id, $2, $3, $4 FROM orders WHERE id = ANY($1::int[]) RETURNING order_id`,
+        [ids, b.status, note, req.admin.u]);
       await client.query(
         `UPDATE orders SET status = $2, updated_at = now(),
            received_at = CASE WHEN $2 = 'delivered' THEN COALESCE(received_at, now()) ELSE NULL END
